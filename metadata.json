@@ -1,0 +1,6 @@
+{
+  "name": "Registro Corporal",
+  "description": "Lleva un registro detallado de tus medidas corporales, peso y porcentaje de grasa con gráficos, cálculo automático (método Marina EE.UU.) y exportación a PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
