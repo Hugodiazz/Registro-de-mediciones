@@ -43,6 +43,76 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
     val profileHeight = MutableStateFlow(sharedPrefs.getString("height", "170") ?: "")
     val profilePhotoUri = MutableStateFlow(sharedPrefs.getString("photoUri", "") ?: "")
 
+    // LITE or PRO Mode state from SharedPreferences
+    val isLiteMode = MutableStateFlow(sharedPrefs.getBoolean("isLiteMode", false))
+    val useLb = MutableStateFlow(sharedPrefs.getBoolean("useLb", false))
+
+    // --- DYNAMIC GOAL SETTING (RF-06 & RF-07) ---
+    val userGoalType = MutableStateFlow(sharedPrefs.getString("userGoalType", "Reducción de Peso / Pérdida de Grasa") ?: "Reducción de Peso / Pérdida de Grasa")
+    val userTargetWeight = MutableStateFlow(sharedPrefs.getString("userTargetWeight", "") ?: "")
+    val userTargetFat = MutableStateFlow(sharedPrefs.getString("userTargetFat", "") ?: "")
+    val userActivityLevel = MutableStateFlow(sharedPrefs.getString("userActivityLevel", "Moderado") ?: "Moderado")
+
+    fun toggleLiteMode(enabled: Boolean) {
+        sharedPrefs.edit().putBoolean("isLiteMode", enabled).apply()
+        isLiteMode.value = enabled
+    }
+
+    fun toggleUseLb(enabled: Boolean) {
+        sharedPrefs.edit().putBoolean("useLb", enabled).apply()
+        useLb.value = enabled
+    }
+
+    fun saveGoalSettings(goalType: String, targetWeight: String, targetFat: String, activityLevel: String) {
+        sharedPrefs.edit().apply {
+            putString("userGoalType", goalType)
+            putString("userTargetWeight", targetWeight)
+            putString("userTargetFat", targetFat)
+            putString("userActivityLevel", activityLevel)
+            apply()
+        }
+        userGoalType.value = goalType
+        userTargetWeight.value = targetWeight
+        userTargetFat.value = targetFat
+        userActivityLevel.value = activityLevel
+
+        viewModelScope.launch {
+            val latestMeas = measurements.value.firstOrNull()
+            
+            val tWeight = targetWeight.toDoubleOrNull()
+            if (tWeight != null && tWeight > 0.0) {
+                // Convert to kg for internal DB storage if unit is lbs
+                val weightInKg = if (useLb.value) tWeight / 2.20462 else tWeight
+                val startingWeight = latestMeas?.weight ?: weightInKg
+                
+                val existingPesoGoals = goals.value.filter { it.type == "Peso (kg)" }
+                existingPesoGoals.forEach { repository.deleteGoal(it) }
+                
+                repository.insertGoal(GoalEntity(
+                    type = "Peso (kg)",
+                    targetValue = weightInKg,
+                    startingValue = startingWeight,
+                    timestamp = System.currentTimeMillis()
+                ))
+            }
+            
+            val tFat = targetFat.toDoubleOrNull()
+            if (tFat != null && tFat > 0.0) {
+                val startingFat = latestMeas?.fatPercentage ?: tFat
+                val existingFatGoals = goals.value.filter { it.type == "Grasa (%)" }
+                existingFatGoals.forEach { repository.deleteGoal(it) }
+                
+                repository.insertGoal(GoalEntity(
+                    type = "Grasa (%)",
+                    targetValue = tFat,
+                    startingValue = startingFat,
+                    timestamp = System.currentTimeMillis()
+                ))
+            }
+        }
+        _uiMessage.value = "¡Hoja de ruta guardada con éxito!"
+    }
+
     fun saveProfile(name: String, age: String, gender: String, height: String, photoUri: String) {
         sharedPrefs.edit().apply {
             putString("name", name)
@@ -105,8 +175,7 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
     val bicepInput = MutableStateFlow("")
     val bicepLeftInput = MutableStateFlow("")
     val bicepRightInput = MutableStateFlow("")
-    val forearmLeftInput = MutableStateFlow("")
-    val forearmRightInput = MutableStateFlow("")
+    val forearmInput = MutableStateFlow("")
     val thighInput = MutableStateFlow("")
     val thighLeftInput = MutableStateFlow("")
     val thighRightInput = MutableStateFlow("")
@@ -126,8 +195,9 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
 
     // --- REALTIME DYNAMIC CALCULATIONS ---
     // Combined flow calculates BMI dynamically as user types weight/height
-    val calculatedBmi: StateFlow<Double> = combine(weightInput, heightInput) { weightStr, heightStr ->
-        val weight = weightStr.toDoubleOrNull() ?: 0.0
+    val calculatedBmi: StateFlow<Double> = combine(weightInput, heightInput, useLb) { weightStr, heightStr, isLb ->
+        val weightRaw = weightStr.toDoubleOrNull() ?: 0.0
+        val weight = if (isLb) weightRaw / 2.20462 else weightRaw
         val height = heightStr.toDoubleOrNull() ?: 0.0
         BodyCalculator.calculateBMI(weight, height)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
@@ -161,8 +231,7 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
                 bicepInput.value = if (last.bicep > 0) last.bicep.toString() else ""
                 bicepLeftInput.value = if (last.bicepLeft > 0) last.bicepLeft.toString() else ""
                 bicepRightInput.value = if (last.bicepRight > 0) last.bicepRight.toString() else ""
-                forearmLeftInput.value = if (last.forearmLeft > 0) last.forearmLeft.toString() else ""
-                forearmRightInput.value = if (last.forearmRight > 0) last.forearmRight.toString() else ""
+                forearmInput.value = if (last.forearm > 0) last.forearm.toString() else ""
                 thighInput.value = if (last.thigh > 0) last.thigh.toString() else ""
                 thighLeftInput.value = if (last.thighLeft > 0) last.thighLeft.toString() else ""
                 thighRightInput.value = if (last.thighRight > 0) last.thighRight.toString() else ""
@@ -179,8 +248,7 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
         notesInput.value = ""
         bicepLeftInput.value = ""
         bicepRightInput.value = ""
-        forearmLeftInput.value = ""
-        forearmRightInput.value = ""
+        forearmInput.value = ""
         thighLeftInput.value = ""
         thighRightInput.value = ""
         calfLeftInput.value = ""
@@ -192,10 +260,10 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
      */
     fun saveMeasurement() {
         viewModelScope.launch {
-            val weight = weightInput.value.toDoubleOrNull()
+            val weightRaw = weightInput.value.toDoubleOrNull()
             val height = heightInput.value.toDoubleOrNull()
 
-            if (weight == null || weight <= 0.0) {
+            if (weightRaw == null || weightRaw <= 0.0) {
                 _uiMessage.value = "Por favor, ingresa un peso válido mayor a 0."
                 return@launch
             }
@@ -203,6 +271,8 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
                 _uiMessage.value = "Por favor, ingresa una altura válida mayor a 0."
                 return@launch
             }
+
+            val weight = if (useLb.value) weightRaw / 2.20462 else weightRaw
 
             // Determine target fat percentage
             val finalFat = if (isFatManual.value) {
@@ -252,8 +322,7 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
             val calfLeft = calfLeftInput.value.toDoubleOrNull() ?: 0.0
             val calfRight = calfRightInput.value.toDoubleOrNull() ?: 0.0
 
-            val forearmLeft = forearmLeftInput.value.toDoubleOrNull() ?: 0.0
-            val forearmRight = forearmRightInput.value.toDoubleOrNull() ?: 0.0
+            val forearm = forearmInput.value.toDoubleOrNull() ?: 0.0
 
             val entity = MeasurementEntity(
                 timestamp = System.currentTimeMillis(),
@@ -267,8 +336,7 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
                 bicep = bicep,
                 bicepLeft = bicepLeft,
                 bicepRight = bicepRight,
-                forearmLeft = forearmLeft,
-                forearmRight = forearmRight,
+                forearm = forearm,
                 thigh = thigh,
                 thighLeft = thighLeft,
                 thighRight = thighRight,

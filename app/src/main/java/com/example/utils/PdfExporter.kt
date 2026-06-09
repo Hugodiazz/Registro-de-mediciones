@@ -319,7 +319,7 @@ object PdfExporter {
         textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
         textPaint.textSize = 9.5f
         textPaint.color = Color.parseColor("#94A3B8")
-        canvas2.drawText("Composición de Tejidos, Metabolismo y Proporciones Estéticas Reeves", margin, 65f, textPaint)
+        canvas2.drawText("Composición de Tejidos, Metabolismo y Distribución de Riesgos de Grasa", margin, 65f, textPaint)
         canvas2.drawText("Pág 2 de $totalPages | Registro Actual", pageWidth - margin - 180f, 65f, textPaint)
 
         var y2 = 125f
@@ -386,40 +386,7 @@ object PdfExporter {
 
         y2 += 140f
 
-        // 3. Simetría Muscular y Reeves Proportions
-        paint.color = Color.parseColor("#F8FAFC")
-        paint.style = Paint.Style.FILL
-        canvas2.drawRect(margin, y2, pageWidth - margin, y2 + 185f, paint)
-        paint.color = Color.parseColor("#E2E8F0")
-        paint.style = Paint.Style.STROKE
-        canvas2.drawRect(margin, y2, pageWidth - margin, y2 + 185f, paint)
-
-        textPaint.color = Color.parseColor("#1E293B")
-        textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        textPaint.textSize = 11f
-        canvas2.drawText("3. SIMETRÍA BILATERAL Y PROPORCIONES ESTÉTICAS REEVES", margin + 15f, y2 + 25f, textPaint)
-
-        fun imbPercent(l: Double, r: Double): String {
-            if (l <= 0.0 || r <= 0.0) return "Falta Medida"
-            val m = maxOf(l, r)
-            val imb = if (m > 0.0) (kotlin.math.abs(l - r) / m) * 100.0 else 0.0
-            return "${String.format("%.1f%%", imb)} desbalance"
-        }
-
-        textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-        textPaint.textSize = 9.5f
-        textPaint.color = Color.parseColor("#475569")
-        canvas2.drawText("• Bíceps Simetría: Izquierdo: ${latest.bicepLeft} cm | Derecho: ${latest.bicepRight} cm | Dif: ${imbPercent(latest.bicepLeft, latest.bicepRight)}", margin + 20f, y2 + 52f, textPaint)
-        canvas2.drawText("• Antebrazo Simetría: Izquierdo: ${latest.forearmLeft} cm | Derecho: ${latest.forearmRight} cm | Dif: ${imbPercent(latest.forearmLeft, latest.forearmRight)}", margin + 20f, y2 + 74f, textPaint)
-        canvas2.drawText("• Muslo Simetría: Izquierdo: ${latest.thighLeft} cm | Derecho: ${latest.thighRight} cm | Dif: ${imbPercent(latest.thighLeft, latest.thighRight)}", margin + 20f, y2 + 96f, textPaint)
-        canvas2.drawText("• Pantorrilla Simetría: Izquierdo: ${latest.calfLeft} cm | Derecho: ${latest.calfRight} cm | Dif: ${imbPercent(latest.calfLeft, latest.calfRight)}", margin + 20f, y2 + 118f, textPaint)
-
-        val vTaperRatio = if (latest.waist > 0.0) latest.chest / latest.waist else 0.0
-        canvas2.drawText("• Relación Tórax - Cintura (V-Taper): ${String.format("%.2f", vTaperRatio)} (Índice estético de hombro/tórax)", margin + 20f, y2 + 145f, textPaint)
-
-        y2 += 205f
-
-        // Section 4: Salud de Riesgos (ICC e ICA)
+        // Section 3: Salud de Riesgos (ICC e ICA)
         paint.color = Color.parseColor("#FFFBEB") // Light gold warm banner
         paint.style = Paint.Style.FILL
         canvas2.drawRect(margin, y2, pageWidth - margin, y2 + 110f, paint)
@@ -430,7 +397,7 @@ object PdfExporter {
         textPaint.color = Color.parseColor("#78350F")
         textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         textPaint.textSize = 10.5f
-        canvas2.drawText("ADVERTENCIA DE SALUD PÚBLICA / ÍNDICES DE DISTRIBUCIÓN DE GRASA", margin + 15f, y2 + 25f, textPaint)
+        canvas2.drawText("3. ADVERTENCIA DE SALUD PÚBLICA / ÍNDICES DE DISTRIBUCIÓN DE GRASA", margin + 15f, y2 + 25f, textPaint)
 
         val healthVals = BodyCalculator.calculateAdvancedHealth(latest.waist, latest.hip, latest.height, age, gender)
         

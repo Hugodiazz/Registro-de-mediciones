@@ -33,97 +33,199 @@ fun InfoTab(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Guía de Medición y Salud",
+            text = "Guía Completa de Medición y Salud",
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
         )
 
-        // Card: Navy body fat method
+        Text(
+            text = "Consulta las bases científicas, fórmulas matemáticas y protocolos clínicos que utiliza la aplicación para procesar tus métricas corporales en tiempo real.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        // CARD 1: IMC
         InfoCard(
-            title = "Método de la Marina de EE. UU.",
-            icon = Icons.Default.HelpOutline,
+            title = "Índice de Masa Corporal (IMC)",
+            icon = Icons.Default.TrendingUp,
+            iconTint = Color(0xFFE91E63)
+        ) {
+            Text(
+                text = "Métrica estándar recomendada por la Organización Mundial de la Salud (OMS) para evaluar si un individuo tiene un peso saludable en relación con su estatura.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                lineHeight = 20.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            FormulaContainer("IMC = Peso (kg) / Altura² (m)")
+            BulletRow(boldText = "< 18.5:", text = "Bajo peso (desnutrición o delgadez constitucional)")
+            BulletRow(boldText = "18.5 a 24.9:", text = "Peso saludable (Óptimo)")
+            BulletRow(boldText = "25.0 a 29.9:", text = "Sobrepeso")
+            BulletRow(boldText = ">= 30.0:", text = "Obesidad (Riesgo cardiovascular aumentado)")
+        }
+
+        // CARD 2: COMPOSICION CORPORAL
+        InfoCard(
+            title = "Composición Corporal Avanzada",
+            icon = Icons.Default.AccessibilityNew,
+            iconTint = Color(0xFF4CAF50)
+        ) {
+            Text(
+                text = "Más allá del peso bruto, dividimos tu organismo en tejido graso y masa muscular magra activa para un análisis antropométrico completo:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                lineHeight = 20.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            FormulaContainer(
+                "Masa Grasa (kg) = Peso (kg) × ( % Grasa / 100 )\n\n" +
+                "Masa Magra (kg) = Peso (kg) − Masa Grasa (kg)\n\n" +
+                "FFMI (Índice de Masa Libre de Grasa) = Masa Magra (kg) / Altura² (m)"
+            )
+            BulletRow(
+                boldText = "FFMI (Fat-Free Mass Index):",
+                text = "Indica tu densidad muscular por metro cuadrado. Un FFMI entre 18-20 es el promedio; de 21-22 es atlético y muscular destacado; de 23-25 se considera el límite máximo alcanzable de forma natural."
+            )
+        }
+
+        // CARD 3: US NAVY METHOD
+        InfoCard(
+            title = "Fórmula de Grasa US Navy",
+            icon = Icons.Default.Percent,
             iconTint = MaterialTheme.colorScheme.primary
         ) {
             Text(
-                text = "Este método estima el porcentaje de grasa metabólica utilizando únicamente una cinta métrica. Los estudios de la Marina de EE. UU. (US Navy) demostraron que correlacionar circunferencias musculares con la altura ofrece una exactitud notable, desviándose de promedio solo un 3% a 4% respecto al pesaje hidrostático profesional.",
+                text = "Mapea tus circunferencias musculares frente a la altura. El método científico de la Marina de EE. UU. cuenta con una desviación de solo +/- 3.5% respecto a escaneos DEXA de laboratorio.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                 lineHeight = 20.sp
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Variables requeridas según tu sexo:",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+            Spacer(modifier = Modifier.height(4.dp))
+            FormulaContainer(
+                "Hombres:\n%Grasa = 495 / [1.0324 - 0.19077 × log10(Cintura - Cuello) + 0.15456 × log10(Altura)] - 450\n\n" +
+                "Mujeres:\n%Grasa = 495 / [1.29579 - 0.35004 × log10(Cintura + Cadera - Cuello) + 0.22100 × log10(Altura)] - 450"
             )
-
-            BulletRow(boldText = "Hombres:", text = "Requieren Altura, Cuello y Cintura.")
-            BulletRow(boldText = "Mujeres:", text = "Requieren Altura, Cuello, Cintura y Cadera.")
+            BulletRow(
+                boldText = "Importante para mujeres:",
+                text = "La cadera es la zona principal de acumulación de estrógeno y grasa ginoide, por lo que su perímetro es indispensable para el cálculo femenino."
+            )
         }
 
-        // Card: Accurate measurement tips
+        // CARD 4: SALUD Y DISTRIBUCION
         InfoCard(
-            title = "Protocolo de Medición Perfecta",
-            icon = Icons.Default.AssignmentTurnedIn,
+            title = "Distribución y Riesgo Cardiovascular (ICC/ICA)",
+            icon = Icons.Default.HealthAndSafety,
             iconTint = Color(0xFF009688)
         ) {
             Text(
-                text = "Para obtener tendencias de progreso verídicas y constantes en tus gráficos, te sugerimos seguir estas pautas clínicas de medición:",
+                text = "Evaluamos cómo y dónde almacenas grasa, midiendo el riesgo coronario y vascular central:",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                 lineHeight = 20.sp
             )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            StepRow(stepNum = "1", text = "Mídete preferiblemente por la mañana en ayunas, después de ir al baño, y antes de consumir cualquier alimento o realizar deporte.")
-            StepRow(stepNum = "2", text = "Usa una cinta métrica flexible pero inextensible (metálica o de sastre). Mantén la cinta paralela al suelo y firme, pero sin oprimir o tensar de más la piel.")
-            StepRow(stepNum = "3", text = "Cuello: Mide la circunferencia justo debajo de la laringe (nuez de Adán).")
-            StepRow(stepNum = "4", text = "Cintura: Hombres miren horizontalmente sobre el ombligo. Mujeres miren horizontalmente a nivel del diámetro mínimo (cintura natural).")
-            StepRow(stepNum = "5", text = "Cadera (Solo mujeres): Mide horizontalmente sobre la circunferencia máxima de los glúteos.")
+            Spacer(modifier = Modifier.height(4.dp))
+            FormulaContainer(
+                "Índice Cintura-Cadera (ICC) = Cintura (cm) / Cadera (cm)\n\n" +
+                "Índice Cintura-Altura (ICA) = Cintura (cm) / Altura (cm)"
+            )
+            BulletRow(
+                boldText = "ICC Sano:",
+                text = "Hombres < 0.90, Mujeres < 0.85. Valores superiores indican obesidad androide visceral extrema."
+            )
+            BulletRow(
+                boldText = "ICA Sano:",
+                text = "Menor de 0.50 (la cintura debe medir menos de la mitad de tu altura). Excelente marcador para descartar aterosclerosis y resistencia a la insulina."
+            )
         }
 
-        // Card: ACE body fat ranges
+        // CARD 5: GRASA VISCERAL
         InfoCard(
-            title = "Rangos de Grasa Corporal (ACE)",
-            icon = Icons.Default.Info,
-            iconTint = Color(0xFF3B82F6)
+            title = "Área de Grasa Visceral Estimada (VFA)",
+            icon = Icons.Default.Warning,
+            iconTint = Color(0xFFFF9800)
         ) {
             Text(
-                text = "Niveles de grasa recomendados por el American Council on Exercise (ACE):",
+                text = "La grasa visceral recubre tus órganos vitales (hígado, páncreas) y secreta citocinas inflamatorias destructivas.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                 lineHeight = 20.sp
             )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Masculino", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
-                    BulletRow(boldText = "Grasa Esencial:", text = "2% a 5%")
-                    BulletRow(boldText = "Atletas:", text = "6% a 13%")
-                    BulletRow(boldText = "Fitness:", text = "14% a 17%")
-                    BulletRow(boldText = "Aceptable:", text = "18% a 24%")
-                    BulletRow(boldText = "Obesidad:", text = ">= 25%")
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Femenino", fontWeight = FontWeight.Bold, color = Color(0xFFE91E63), fontSize = 13.sp)
-                    BulletRow(boldText = "Grasa Esencial:", text = "10% a 13%")
-                    BulletRow(boldText = "Atletas:", text = "14% a 20%")
-                    BulletRow(boldText = "Fitness:", text = "21% a 24%")
-                    BulletRow(boldText = "Aceptable:", text = "25% a 31%")
-                    BulletRow(boldText = "Obesidad:", text = ">= 32%")
-                }
-            }
+            Spacer(modifier = Modifier.height(4.dp))
+            FormulaContainer(
+                "Hombres: VFA (cm²) = 1.48 × Cintura (cm) + 0.35 × Edad (años) − 88.5\n\n" +
+                "Mujeres: VFA (cm²) = 1.03 × Cintura (cm) + 0.56 × Edad (años) − 51.2"
+            )
+            BulletRow(boldText = "VFA < 100 cm²:", text = "Riesgo Bajo / Zona Óptima de inmunidad.")
+            BulletRow(boldText = "100 - 140 cm²:", text = "Riesgo Moderado / Alerta de estilo de vida.")
+            BulletRow(boldText = "VFA > 140 cm²:", text = "Riesgo Alto / Marcado incremento de diabetes tipo 2 y cardiopatías.")
         }
 
-        Spacer(modifier = Modifier.height(70.dp)) // Safe scrolling margin for navigation bar
+        // CARD 6: METABOLICO Y ENERGETICO
+        InfoCard(
+            title = "Tasa Metabólica y Energía (TMB/GETD)",
+            icon = Icons.Default.Bolt,
+            iconTint = Color(0xFFFBC02D)
+        ) {
+            Text(
+                text = "Establece el balance calórico que requiere tu cuerpo para subsistir y entrenar, utilizando la fórmula de Katch-McArdle, al basarse directamente sobre tu masa magra muscular metabólicamente muy activa:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                lineHeight = 20.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            FormulaContainer(
+                "Tasa Metabólica Basal (TMB) = 370 + 21.6 × Masa Magra (kg)\n\n" +
+                "Gasto Energético Total Diario (GETD) = TMB × Factor Actividad"
+            )
+            BulletRow(boldText = "Sedentario (x1.2):", text = "Trabajo de oficina y mínimo movimiento diario.")
+            BulletRow(boldText = "Ligero (x1.375):", text = "Actividad suave o entrenamiento de 1 a 3 días por semana.")
+            BulletRow(boldText = "Moderado (x1.55):", text = "Entrenamiento intenso de 3 a 5 días por semana.")
+            BulletRow(boldText = "Intenso (x1.725):", text = "Práctica deportiva intensa diaria o trabajo físico demandante.")
+        }
+
+        // CARD 7: PROPORCIONES CLASICAS (REEVES)
+        InfoCard(
+            title = "Simetría de Proporciones Clásicas (Steve Reeves)",
+            icon = Icons.Default.Star,
+            iconTint = Color(0xFF9C27B0)
+        ) {
+            Text(
+                text = "En base al canon estético clásico de la era de oro del culturismo de Steve Reeves, se utiliza como ancla biométrica el tamaño óseo del Pecho ideal (calculado idealmente como el 58% de tu estatura). A partir de allí, se calculan las proporciones perfectas para esculpir simetría:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                lineHeight = 20.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            FormulaContainer(
+                "Pecho Ideal = Altura (cm) × 0.58\n\n" +
+                "Cintura Ideal = Pecho × 0.70 (Silueta en V / V-Taper)\n" +
+                "Cadera Ideal = Pecho × 0.85\n" +
+                "Cuello / Bíceps / Gemelos Ideales = Pecho × 0.38\n" +
+                "Antebrazo Ideal = Pecho × 0.30\n" +
+                "Muslo Ideal = Pecho × 0.60"
+            )
+            BulletRow(
+                boldText = "Silueta V-Taper:",
+                text = "Dividir el contorno del pecho sobre el contorno de la cintura nos da la relación V-Taper. Una relación por encima de 1.4 es sinónimo de una cintura estrecha y dorsal prominente estética."
+            )
+        }
+
+        // CARD 8: PROTOCOLO CLINICO
+        InfoCard(
+            title = "Protocolo para Toma de Medidas Perfecta",
+            icon = Icons.Default.AssignmentTurnedIn,
+            iconTint = Color(0xFF3F51B5)
+        ) {
+            StepRow(stepNum = "1", text = "Momento óptimo: Mídete siempre por la mañana, en ayunas, recién levantado y después de vaciar la vejiga.")
+            StepRow(stepNum = "2", text = "Cinta métrica: Utiliza cintas de sastre flexibles no elásticas. Asegúrate de que la cinta rodee el plano horizontal exacto sin presionar la piel.")
+            StepRow(stepNum = "3", text = "Cuello: Rodea la zona justo por debajo de la laringe (nuez de Adán).")
+            StepRow(stepNum = "4", text = "Cintura: Hombres miren sobre el ombligo. Mujeres miren horizontalmente en el punto más estrecho del torso.")
+            StepRow(stepNum = "5", text = "Cadera: Mujeres rodeen la parte con máxima circunferencia de los glúteos.")
+            StepRow(stepNum = "6", text = "Antebrazo: El antebrazo y los flexores del brazo deben medirse en el volumen del contorno máximo del brazo completamente relajado.")
+        }
+
+        Spacer(modifier = Modifier.height(70.dp))
     }
 }
 
@@ -165,6 +267,29 @@ fun InfoCard(
 
             content()
         }
+    }
+}
+
+@Composable
+fun FormulaContainer(
+    formula: String
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Text(
+            text = formula,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(14.dp),
+            textAlign = TextAlign.Center,
+            lineHeight = 20.sp
+        )
     }
 }
 

@@ -51,6 +51,12 @@ fun PerfilTab(
     val savedHeight by viewModel.profileHeight.collectAsState()
     val savedPhotoUri by viewModel.profilePhotoUri.collectAsState()
 
+    val savedGoalType by viewModel.userGoalType.collectAsState()
+    val savedTargetWeight by viewModel.userTargetWeight.collectAsState()
+    val savedTargetFat by viewModel.userTargetFat.collectAsState()
+    val savedActivityLevel by viewModel.userActivityLevel.collectAsState()
+    val isLb by viewModel.useLb.collectAsState()
+
     // Local form state
     var nameInput by remember { mutableStateOf("") }
     var ageInput by remember { mutableStateOf("") }
@@ -58,13 +64,23 @@ fun PerfilTab(
     var heightInput by remember { mutableStateOf("") }
     var photoUriState by remember { mutableStateOf("") }
 
+    var goalTypeInput by remember { mutableStateOf("") }
+    var targetWeightInput by remember { mutableStateOf("") }
+    var targetFatInput by remember { mutableStateOf("") }
+    var activityLevelInput by remember { mutableStateOf("Moderado") }
+
     // Sync local state when saved state updates
-    LaunchedEffect(savedName, savedAge, savedGender, savedHeight, savedPhotoUri) {
+    LaunchedEffect(savedName, savedAge, savedGender, savedHeight, savedPhotoUri, savedGoalType, savedTargetWeight, savedTargetFat, savedActivityLevel) {
         nameInput = savedName
         ageInput = savedAge
         genderInput = if (savedGender.isNotBlank()) savedGender else "Masculino"
         heightInput = savedHeight
         photoUriState = savedPhotoUri
+
+        goalTypeInput = savedGoalType
+        targetWeightInput = savedTargetWeight
+        targetFatInput = savedTargetFat
+        activityLevelInput = savedActivityLevel
     }
 
     // Photo picker launcher
@@ -325,6 +341,148 @@ fun PerfilTab(
                 fontSize = 15.sp
             )
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // --- HOJA DE RUTA / GOAL FORMULATION CARD ---
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Definir Hoja de Ruta y Metas",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                // 1. Goal Type Toggle Row
+                Column {
+                    Text(
+                        text = "Tipo de Enfoque Principal (Meta)",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GoalTypeOptionRow(
+                            text = "Reducción de Peso / Pérdida de Grasa",
+                            icon = Icons.Default.HealthAndSafety,
+                            description = "Enfoque en definición, salud metabólica y control de riesgos",
+                            isSelected = goalTypeInput == "Reducción de Peso / Pérdida de Grasa",
+                            onClick = { goalTypeInput = "Reducción de Peso / Pérdida de Grasa" }
+                        )
+
+                        GoalTypeOptionRow(
+                            text = "Aumento de Peso / Ganancia de Masa Muscular",
+                            icon = Icons.Default.FitnessCenter,
+                            description = "Enfoque en hipertrofia y desarrollo estético",
+                            isSelected = goalTypeInput == "Aumento de Peso / Ganancia de Masa Muscular",
+                            onClick = { goalTypeInput = "Aumento de Peso / Ganancia de Masa Muscular" }
+                        )
+                    }
+                }
+
+                // 2. Weight and fat objective fields
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(11.dp)
+                ) {
+                    val weightSuffix = if (isLb) "lbs" else "kg"
+                    OutlinedTextField(
+                        value = targetWeightInput,
+                        onValueChange = { targetWeightInput = it },
+                        label = { Text("Peso Objetivo ($weightSuffix)") },
+                        leadingIcon = { Icon(imageVector = Icons.Default.TrendingDown, contentDescription = null) },
+                        placeholder = { Text("Ej. 70") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("goal_weight_input"),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = targetFatInput,
+                        onValueChange = { targetFatInput = it },
+                        label = { Text("% Grasa Obj.") },
+                        leadingIcon = { Icon(imageVector = Icons.Default.Percent, contentDescription = null) },
+                        placeholder = { Text("Ej. 12") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("goal_fat_input"),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+                }
+
+                // 3. Activity level chips Selector
+                Column {
+                    Text(
+                        text = "Nivel de Actividad Física (GETD)",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val activityLevels = listOf("Sedentario", "Ligero", "Moderado", "Intenso")
+                        activityLevels.forEach { level ->
+                            ActivityLevelChip(
+                                text = level,
+                                isSelected = activityLevelInput == level,
+                                onClick = { activityLevelInput = level },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- HOJA DE RUTA SAVE BUTTON ---
+        Button(
+            onClick = {
+                viewModel.saveGoalSettings(
+                    goalTypeInput,
+                    targetWeightInput.trim(),
+                    targetFatInput.trim(),
+                    activityLevelInput
+                )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .testTag("goal_save_button"),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary
+            )
+        ) {
+            Icon(imageVector = Icons.Default.DirectionsRun, contentDescription = "Guardar Goal")
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Guardar Hoja de Ruta",
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
+        }
     }
 }
 
@@ -372,6 +530,121 @@ fun ProfileGenderChoice(
             Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(6.dp))
             Text(text = text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+fun GoalTypeOptionRow(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+    }
+
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    val borderStroke = if (isSelected) {
+        androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+    } else {
+        androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+    }
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("goal_type_option_$text"),
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+        contentColor = contentColor,
+        border = borderStroke
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = text,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ActivityLevelChip(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    }
+
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    val strokeBorder = if (isSelected) {
+        androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+    } else {
+        androidx.compose.foundation.BorderStroke(1.dp, Color.Transparent)
+    }
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .height(38.dp)
+            .testTag("activity_level_chip_$text"),
+        shape = RoundedCornerShape(10.dp),
+        color = containerColor,
+        contentColor = contentColor,
+        border = strokeBorder
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

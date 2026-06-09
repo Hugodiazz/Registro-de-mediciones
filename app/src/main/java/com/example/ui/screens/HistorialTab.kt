@@ -397,8 +397,7 @@ fun MeasurementItemCard(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        TapeMeasurementLabel(title = "Antebr. Izq.", value = item.forearmLeft)
-                        TapeMeasurementLabel(title = "Antebr. Der.", value = item.forearmRight)
+                        TapeMeasurementLabel(title = "Antebrazo", value = item.forearm)
                     }
 
                     if (item.notes.isNotBlank()) {

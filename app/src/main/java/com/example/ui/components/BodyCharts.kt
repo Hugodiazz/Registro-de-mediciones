@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,6 +27,8 @@ fun BodyLineChart(
     dataPoints: List<Pair<Long, Double>>, // timestamp -> value
     valueSuffix: String,
     lineColor: Color = MaterialTheme.colorScheme.primary,
+    goalValue: Double? = null,
+    goalDirection: String = "downward", // "downward" (loss) vs "upward" (build)
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -74,8 +77,11 @@ fun BodyLineChart(
             } else {
                 val sortedPoints = dataPoints.sortedBy { it.first }
                 val values = sortedPoints.map { it.second }
-                val maxVal = values.maxOrNull() ?: 10.0
-                val minVal = values.minOrNull() ?: 0.0
+                
+                // Include goalValue in plotting boundaries so it is visible on screen
+                val allValues = values + (if (goalValue != null) listOf(goalValue) else emptyList())
+                val maxVal = allValues.maxOrNull() ?: 10.0
+                val minVal = allValues.minOrNull() ?: 0.0
 
                 // Add margin to min/max so lines don't clip at top/bottom border
                 val valueRange = maxVal - minVal
@@ -193,6 +199,33 @@ fun BodyLineChart(
                             center = Offset(cx, cy)
                         )
                     }
+
+                    // 4. Draw Goal Line if it exists
+                    goalValue?.let { gVal ->
+                        val vFraction = if (plottedMax == plottedMin) 0.5f else (gVal - plottedMin) / (plottedMax - plottedMin)
+                        val gy = topMargin + chartHeight * (1f - vFraction.toFloat())
+
+                        if (gy in topMargin..(topMargin + chartHeight)) {
+                            val latestValue = values.lastOrNull() ?: 0.0
+                            val isAlert = goalDirection == "downward" && latestValue > gVal
+                            val isCelebrate = goalDirection == "upward" && latestValue >= gVal
+
+                            val goalLineColor = when {
+                                isAlert -> Color(0xFFF44336) // Red warning
+                                isCelebrate -> Color(0xFF4CAF50) // Green celebration
+                                else -> lineColor.copy(alpha = 0.6f)
+                            }
+
+                            val pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                            drawLine(
+                                color = goalLineColor,
+                                start = Offset(leftMargin, gy),
+                                end = Offset(width - rightMargin, gy),
+                                strokeWidth = 3f,
+                                pathEffect = pathEffect
+                            )
+                        }
+                    }
                 }
 
                 // Bottom Labels (Dates) & Side Labels (Min/Max values)
@@ -235,10 +268,49 @@ fun BodyLineChart(
                     val currentVal = values.last()
                     val averageVal = values.average()
 
-                    StatSummaryLabel(title = "Mínimo", value = "${String.format("%.1f", minVal)} $valueSuffix")
+                    // Exclude goalValue from min/max display so we only show actual measurements
+                    val actualMin = values.minOrNull() ?: minVal
+                    val actualMax = values.maxOrNull() ?: maxVal
+
+                    StatSummaryLabel(title = "Mínimo", value = "${String.format("%.1f", actualMin)} $valueSuffix")
                     StatSummaryLabel(title = "Promedio", value = "${String.format("%.1f", averageVal)} $valueSuffix")
-                    StatSummaryLabel(title = "Máximo", value = "${String.format("%.1f", maxVal)} $valueSuffix")
+                    StatSummaryLabel(title = "Máximo", value = "${String.format("%.1f", actualMax)} $valueSuffix")
                     StatSummaryLabel(title = "Último", value = "${String.format("%.1f", currentVal)} $valueSuffix", highlightColor = lineColor)
+                }
+
+                // Inline Goal Status Alert / Celebration Badge
+                goalValue?.let { gVal ->
+                    val latestValue = values.lastOrNull() ?: 0.0
+                    val isAlert = goalDirection == "downward" && latestValue > gVal
+                    val isCelebrate = goalDirection == "upward" && latestValue >= gVal
+
+                    val badgeColor = when {
+                        isAlert -> Color(0xFFF44336)       // warning red
+                        isCelebrate -> Color(0xFF4CAF50)   // success green
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+
+                    val badgeText = when {
+                        isAlert -> "⚠️ Alerta: ¡Estás por encima de la meta! (${String.format("%.1f", latestValue)} > ${String.format("%.1f", gVal)} $valueSuffix)"
+                        isCelebrate -> "🎉 ¡Meta superada con éxito! (${String.format("%.1f", latestValue)} >= ${String.format("%.1f", gVal)} $valueSuffix)"
+                        goalDirection == "downward" -> "🎯 Meta: ${String.format("%.1f", gVal)} $valueSuffix (Límite máximo)"
+                        else -> "🎯 Meta: ${String.format("%.1f", gVal)} $valueSuffix o superior"
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = badgeColor.copy(alpha = 0.1f),
+                        contentColor = badgeColor,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = badgeText,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
                 }
             }
         }

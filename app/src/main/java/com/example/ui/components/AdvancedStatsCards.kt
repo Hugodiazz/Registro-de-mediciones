@@ -349,9 +349,18 @@ fun HealthRiskItem(
 @Composable
 fun NutritionMetabolicCard(
     leanMassKg: Double,
+    userGoalType: String = "Reducción de Peso / Pérdida de Grasa",
+    userActivityLevel: String = "Moderado",
     modifier: Modifier = Modifier
 ) {
-    var selectedFactor by remember { mutableStateOf(1) } // 0 = Sedentario, 1 = Ligero, 2 = Moderado, 3 = Intenso
+    val initialFactor = when (userActivityLevel) {
+        "Sedentario" -> 0
+        "Ligero" -> 1
+        "Moderado" -> 2
+        "Intenso" -> 3
+        else -> 2
+    }
+    var selectedFactor by remember(userActivityLevel) { mutableStateOf(initialFactor) }
     
     val metabolic = BodyCalculator.calculateAdvancedMetabolic(leanMassKg)
     val resolvedTdee = when (selectedFactor) {
@@ -388,8 +397,20 @@ fun NutritionMetabolicCard(
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Tasa Metabólica Basal (TMB):", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${String.format("%.0f", metabolic.bmr)} kcal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Tasa Metabólica Basal (TMB):", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${String.format("%.0f", metabolic.bmr)} kcal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("GETD (Gasto Total):", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${String.format("%.0f", resolvedTdee)} kcal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
                     Text("Fórmula Katch-McArdle basada en tu masa magra.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                 }
                 
@@ -411,14 +432,112 @@ fun NutritionMetabolicCard(
                 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
                 
-                // Dynamic Calorie Targets
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    CalorieTargetItem("Definición (Déficit)", "${String.format("%.0f", resolvedTdee - 500)}", Color(0xFFF44336), Modifier.weight(1f))
-                    CalorieTargetItem("Mantenimiento", "${String.format("%.0f", resolvedTdee)}", MaterialTheme.colorScheme.primary, Modifier.weight(1f))
-                    CalorieTargetItem("Volumen (Superávit)", "${String.format("%.0f", resolvedTdee + 350)}", Color(0xFF4CAF50), Modifier.weight(1f))
+                // Dynamic Calorie Targets based on Profile
+                val isWeightLoss = userGoalType == "Reducción de Peso / Pérdida de Grasa"
+                
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = if (isWeightLoss) "Régimen Recomendado para Pérdida de Grasa:" else "Régimen Recomendado para Aumento Muscular:",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isWeightLoss) Color(0xFF009688) else Color(0xFFFF9800)
+                    )
+                    
+                    if (isWeightLoss) {
+                        // Weight loss layout highlighting deficit
+                        Surface(
+                            color = Color(0xFF009688).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFF009688).copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Déficit Moderado (-15%)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF009688))
+                                    Text("Óptimo para salud y músculo", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text("${String.format("%.0f", resolvedTdee * 0.85)} kcal", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color(0xFF009688))
+                            }
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("Déficit Extremo (-20%)", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF44336))
+                                    Text("${String.format("%.0f", resolvedTdee * 0.80)} kcal", fontSize = 13.sp, fontWeight = FontWeight.Black)
+                                }
+                            }
+                            
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("Mantenimiento", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Text("${String.format("%.0f", resolvedTdee)} kcal", fontSize = 13.sp, fontWeight = FontWeight.Black)
+                                }
+                            }
+                        }
+                    } else {
+                        // Muscle Gain layout highlighting surplus
+                        Surface(
+                            color = Color(0xFFFF9800).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFFF9800).copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Superávit Magro (+10%)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF9800))
+                                    Text("Óptimo para ganancia de músculo limpia", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text("${String.format("%.0f", resolvedTdee * 1.10)} kcal", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color(0xFFFF9800))
+                            }
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("Superávit Alto (+15%)", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                                    Text("${String.format("%.0f", resolvedTdee * 1.15)} kcal", fontSize = 13.sp, fontWeight = FontWeight.Black)
+                                }
+                            }
+                            
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("Mantenimiento", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Text("${String.format("%.0f", resolvedTdee)} kcal", fontSize = 13.sp, fontWeight = FontWeight.Black)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -464,18 +583,27 @@ fun NutritionChip(
 }
 
 @Composable
-fun SymmetryAnalysisCard(
-    log: MeasurementEntity,
+fun SymmetryBilateralCard(
+    latestLog: MeasurementEntity,
     modifier: Modifier = Modifier
 ) {
-    val sym = BodyCalculator.calculateAdvancedSymmetry(
-        bicepL = log.bicepLeft, bicepR = log.bicepRight,
-        forearmL = log.forearmLeft, forearmR = log.forearmRight,
-        thighL = log.thighLeft, thighR = log.thighRight,
-        calfL = log.calfLeft, calfR = log.calfRight,
-        chest = log.chest, waist = log.waist
+    val bL = latestLog.bicepLeft
+    val bR = latestLog.bicepRight
+    val tL = latestLog.thighLeft
+    val tR = latestLog.thighRight
+    val cL = latestLog.calfLeft
+    val cR = latestLog.calfRight
+    val chest = latestLog.chest
+    val waist = latestLog.waist
+
+    val symmetry = BodyCalculator.calculateAdvancedSymmetry(
+        bicepL = bL, bicepR = bR,
+        forearmL = latestLog.forearm, forearmR = latestLog.forearm,
+        thighL = tL, thighR = tR,
+        calfL = cL, calfR = cR,
+        chest = chest, waist = waist
     )
-    
+
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -492,104 +620,127 @@ fun SymmetryAnalysisCard(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            
-            // Symmetry rows for: Bicep, Forearm, Thigh, Calf
-            val list = listOf(
-                Triple("Bíceps", Pair(log.bicepLeft, log.bicepRight), sym.bicepImbalance),
-                Triple("Antebrazo", Pair(log.forearmLeft, log.forearmRight), sym.forearmImbalance),
-                Triple("Muslo", Pair(log.thighLeft, log.thighRight), sym.thighImbalance),
-                Triple("Pantorrilla", Pair(log.calfLeft, log.calfRight), sym.calfImbalance)
-            )
-            
-            list.forEach { (label, values, imbalance) ->
-                val (l, r) = values
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+
+            // Dynamic V-Taper highlight if chest and waist are loaded
+            if (chest > 0.0 && waist > 0.0) {
+                val ratio = symmetry.vTaperRatio
+                val classification = when {
+                    ratio >= 1.4 -> "Excelente (V-Shape Clásico)"
+                    ratio >= 1.2 -> "Buen V-Taper"
+                    else -> "V-Taper Moderado"
+                }
+                val ratioColor = if (ratio >= 1.3) Color(0xFFFF9800) else MaterialTheme.colorScheme.primary
+                
+                Surface(
+                    color = ratioColor.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, ratioColor.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(label, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                        if (l > 0.0 && r > 0.0) {
-                            val color = if (imbalance < 2.0) Color(0xFF4CAF50) else if (imbalance < 5.0) Color(0xFFFF9800) else Color(0xFFF44336)
-                            val statusText = if (imbalance < 2.0) "Óptima" else "Desbalance"
-                            Text(
-                                text = "${String.format("%.1f%%", imbalance)} ($statusText)",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = color,
-                                fontWeight = FontWeight.Black
-                            )
-                        } else {
-                            Text("Falta una de las medidas", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                        Column {
+                            Text("Índice V-Taper (Pecho/Cintura)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                            Text(String.format("%.2f x", ratio), fontSize = 18.sp, fontWeight = FontWeight.Black, color = ratioColor)
                         }
-                    }
-                    
-                    // Custom bar chart
-                    if (l > 0.0 || r > 0.0) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().height(14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Left limb bar
-                            val normalizedL = if (l > 0) l / maxOf(l, r) else 0.0
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .background(
-                                        color = if (l >= r) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                        shape = RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50)
-                                    )
-                            ) {
-                                Text(
-                                    text = if (l > 0) "${String.format("%.1f", l)} cm" else "",
-                                    color = Color.White,
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp)
-                                )
-                            }
-                            
-                            // Mid separator
-                            Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)))
-                            
-                            // Right limb bar
-                            val normalizedR = if (r > 0) r / maxOf(l, r) else 0.0
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .background(
-                                        color = if (r >= l) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                        shape = RoundedCornerShape(topEndPercent = 50, bottomEndPercent = 50)
-                                    )
-                            ) {
-                                Text(
-                                    text = if (r > 0) "${String.format("%.1f", r)} cm" else "",
-                                    color = Color.White,
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp)
-                                )
-                            }
-                        }
+                        Text(classification, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ratioColor)
                     }
                 }
             }
-            
-            if (sym.vTaperRatio > 0.0) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+
+            // Muscle list
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 1. Biceps
+                SymmetryRowItem(
+                    label = "Bíceps (Izq / Der)",
+                    valL = bL,
+                    valR = bR,
+                    imbalancePercent = symmetry.bicepImbalance
+                )
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+
+                // 2. Thighs
+                SymmetryRowItem(
+                    label = "Muslos (Izq / Der)",
+                    valL = tL,
+                    valR = tR,
+                    imbalancePercent = symmetry.thighImbalance
+                )
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+
+                // 3. Calves
+                SymmetryRowItem(
+                    label = "Pantorrillas (Izq / Der)",
+                    valL = cL,
+                    valR = cR,
+                    imbalancePercent = symmetry.calfImbalance
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SymmetryRowItem(
+    label: String,
+    valL: Double,
+    valR: Double,
+    imbalancePercent: Double
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            if (valL > 0.0 && valR > 0.0) {
+                Text(
+                    text = String.format("%.1f cm vs %.1f cm", valL, valR),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    text = "Datos incompletos",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+        }
+
+        if (valL > 0.0 && valR > 0.0) {
+            val (badgeColor, statusText) = when {
+                imbalancePercent < 1.0 -> Color(0xFF4CAF50) to "Simétrico"
+                imbalancePercent <= 3.0 -> Color(0xFFFF9800) to "Leve"
+                else -> Color(0xFFF44336) to "Desbalance"
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = badgeColor.copy(alpha = 0.12f)),
+                shape = RoundedCornerShape(8.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor.copy(alpha = 0.4f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalAlignment = Alignment.End
                 ) {
-                    Text("Relación Tórax-Cintura (V-Taper)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                     Text(
-                        text = String.format("%.2f", sym.vTaperRatio),
+                        text = statusText,
+                        color = badgeColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        text = String.format("%.1f%%", imbalancePercent),
+                        color = badgeColor,
                         style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.primary
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -598,20 +749,28 @@ fun SymmetryAnalysisCard(
 }
 
 @Composable
-fun ReevesProportionsCard(
-    height: Double,
-    chest: Double,
-    waist: Double,
-    hip: Double,
-    neck: Double,
-    bicep: Double,
-    forearm: Double,
-    thigh: Double,
-    calf: Double,
+fun SteveReevesProportionsCard(
+    latestLog: MeasurementEntity,
+    isLb: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val ideals = BodyCalculator.calculateAdvancedReeves(height, chest)
+    val height = latestLog.height
+    val currentChest = latestLog.chest
     
+    val reeves = BodyCalculator.calculateAdvancedReeves(height, currentChest)
+    val unit = "cm"
+
+    val items = listOf(
+        ReevesItemData("Pecho", currentChest, reeves.chestIdeal),
+        ReevesItemData("Cintura", latestLog.waist, reeves.waistIdeal),
+        ReevesItemData("Cadera", latestLog.hip, reeves.hipIdeal),
+        ReevesItemData("Cuello", latestLog.neck, reeves.neckIdeal),
+        ReevesItemData("Bíceps", maxOf(latestLog.bicepLeft, latestLog.bicepRight, latestLog.bicep), reeves.bicepIdeal),
+        ReevesItemData("Antebrazo", latestLog.forearm, reeves.forearmIdeal),
+        ReevesItemData("Muslo", maxOf(latestLog.thighLeft, latestLog.thighRight, latestLog.thigh), reeves.thighIdeal),
+        ReevesItemData("Pantorrilla", maxOf(latestLog.calfLeft, latestLog.calfRight, latestLog.calf), reeves.calfIdeal)
+    )
+
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -620,64 +779,82 @@ fun ReevesProportionsCard(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Proporciones Áureas (Steve Reeves)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            
-            Text(
-                text = "Medidas ideales calculadas en base a tu estructura ósea de tórax (${String.format("%.0f", ideals.chestIdeal)} cm):",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
-            val list = listOf(
-                Quadruple("Bíceps", bicep, ideals.bicepIdeal, "cm"),
-                Quadruple("Antebrazo", forearm, ideals.forearmIdeal, "cm"),
-                Quadruple("Cuello", neck, ideals.neckIdeal, "cm"),
-                Quadruple("Cintura", waist, ideals.waistIdeal, "cm"),
-                Quadruple("Cadera", hip, ideals.hipIdeal, "cm"),
-                Quadruple("Muslo", thigh, ideals.thighIdeal, "cm"),
-                Quadruple("Pantorrilla", calf, ideals.calfIdeal, "cm")
-            )
-            
-            list.filter { it.current > 0.0 }.forEach { item ->
-                val percent = (item.current / item.ideal * 100.0).coerceIn(10.0, 150.0).toFloat()
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column {
+                Text(
+                    text = "Proporciones Clásicas (Steve Reeves)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Canon estético basado en tu estructura ósea/estatura (${String.format("%.0f", height)} cm)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Table Header
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Medida", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1.5f))
+                Text("Actual", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                Text("Ideal Reeves", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
+                Text("Diferencia", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items.forEach { item ->
+                    val hasActual = item.actual > 0.0
+                    val diff = item.actual - item.ideal
+                    val diffText = when {
+                        !hasActual -> "-"
+                        diff > 0.0 -> String.format("+%.1f %s", diff, unit)
+                        diff < 0.0 -> String.format("%.1f %s", diff, unit)
+                        else -> "Meta"
+                    }
+                    val diffColor = when {
+                        !hasActual -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        diff > 0.0 -> Color(0xFF4CAF50)     // above classical
+                        diff < -1.0 -> Color(0xFFFF9800)   // deficit
+                        else -> Color(0xFF4CAF50)
+                    }
+
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(item.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Text(item.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.5f))
                         Text(
-                            text = "Actual: ${String.format("%.1f", item.current)} ${item.unit} / Ideal Steve Reeves: ${String.format("%.1f", item.ideal)} ${item.unit}",
+                            text = if (hasActual) String.format("%.1f %s", item.actual, unit) else "Sin reg.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 10.sp
-                        )
-                    }
-                    
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val color = if (percent in 95f..105f) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
-                        LinearProgressIndicator(
-                            progress = { percent / 100f },
-                            modifier = Modifier.weight(1f).height(6.dp),
-                            color = color,
-                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                            strokeCap = StrokeCap.Round
+                            color = if (hasActual) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.End
                         )
                         Text(
-                            text = "${String.format("%.0f", percent)}%",
+                            text = String.format("%.1f %s", item.ideal, unit),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1.2f),
+                            textAlign = TextAlign.End
+                        )
+                        Text(
+                            text = diffText,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Black
+                            fontWeight = FontWeight.Black,
+                            color = diffColor,
+                            modifier = Modifier.weight(1.2f),
+                            textAlign = TextAlign.End
                         )
                     }
                 }
@@ -686,4 +863,10 @@ fun ReevesProportionsCard(
     }
 }
 
-data class Quadruple<A, B, C, D>(val name: A, val current: B, val ideal: C, val unit: D)
+data class ReevesItemData(
+    val name: String,
+    val actual: Double,
+    val ideal: Double
+)
+
+

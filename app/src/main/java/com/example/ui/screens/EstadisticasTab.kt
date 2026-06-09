@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -30,6 +31,7 @@ import com.example.ui.MeasurementViewModel
 import com.example.ui.components.*
 import com.example.utils.BodyCalculator
 import com.example.utils.PdfExporter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,26 +39,36 @@ fun EstadisticasTab(
     viewModel: MeasurementViewModel,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val measurements by viewModel.measurements.collectAsState()
-    val goals by viewModel.goals.collectAsState()
-    val scrollState = rememberScrollState()
+    val isLite by viewModel.isLiteMode.collectAsState()
+    if (isLite) {
+        LiteEstadisticasScreen(viewModel = viewModel, modifier = modifier)
+    } else {
+        val context = LocalContext.current
+        val measurements by viewModel.measurements.collectAsState()
+        val goals by viewModel.goals.collectAsState()
+        val userGoalType by viewModel.userGoalType.collectAsState()
+        val userTargetWeight by viewModel.userTargetWeight.collectAsState()
+        val userTargetFat by viewModel.userTargetFat.collectAsState()
+        val userActivityLevel by viewModel.userActivityLevel.collectAsState()
+        val isLb by viewModel.useLb.collectAsState()
+        
+        val scrollState = rememberScrollState()
 
-    // Goal creation local inputs linked to viewmodel
-    val goalType by viewModel.goalTypeInput.collectAsState()
-    val goalTarget by viewModel.goalTargetInput.collectAsState()
-    var isGoalTypeDropdownExpanded by remember { mutableStateOf(false) }
+        // Goal creation local inputs linked to viewmodel
+        val goalType by viewModel.goalTypeInput.collectAsState()
+        val goalTarget by viewModel.goalTargetInput.collectAsState()
+        var isGoalTypeDropdownExpanded by remember { mutableStateOf(false) }
 
-    // Get advanced averages splits
-    val advStats = viewModel.getAdvancedStats()
+        // Get advanced averages splits
+        val advStats = viewModel.getAdvancedStats()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         // --- TITLE & EXPORT HEADER ---
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -131,7 +143,13 @@ fun EstadisticasTab(
             val latestLog = chronList.last()
 
             // Calculations
-            val weightChange = latestLog.weight - firstLog.weight
+            val isWeightLoss = userGoalType == "Reducción de Peso / Pérdida de Grasa"
+            val unit = if (isLb) "lbs" else "kg"
+            val convMult = if (isLb) 2.20462 else 1.0
+
+            val displayFirstWeight = firstLog.weight * convMult
+            val displayLatestWeight = latestLog.weight * convMult
+            val weightChange = displayLatestWeight - displayFirstWeight
             val fatChange = latestLog.fatPercentage - firstLog.fatPercentage
 
             // Summary cards
@@ -141,10 +159,10 @@ fun EstadisticasTab(
             ) {
                 MetricTrendCard(
                     title = "Evolución Peso",
-                    currentValue = "${latestLog.weight} kg",
-                    changeValue = "${if (weightChange >= 0) "+" else ""}${String.format("%.1f", weightChange)} kg",
-                    isPositiveProgress = weightChange <= 0,
-                    icon = Icons.Default.TrendingDown,
+                    currentValue = String.format(Locale.US, "%.1f %s", displayLatestWeight, unit),
+                    changeValue = "${if (weightChange >= 0) "+" else ""}${String.format(Locale.US, "%.1f", weightChange)} $unit",
+                    isPositiveProgress = if (isWeightLoss) weightChange <= 0 else weightChange >= 0,
+                    icon = if (isWeightLoss) Icons.Default.TrendingDown else Icons.Default.TrendingUp,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -190,6 +208,14 @@ fun EstadisticasTab(
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
 
+                    val displayWeeklyAvgWeightCurrent = advStats.weeklyAvgWeightCurrent * convMult
+                    val displayWeeklyAvgWeightPrevious = advStats.weeklyAvgWeightPrevious * convMult
+                    val wkDiff = displayWeeklyAvgWeightCurrent - displayWeeklyAvgWeightPrevious
+
+                    val displayMonthlyAvgWeightCurrent = advStats.monthlyAvgWeightCurrent * convMult
+                    val displayMonthlyAvgWeightPrevious = advStats.monthlyAvgWeightPrevious * convMult
+                    val mnDiff = displayMonthlyAvgWeightCurrent - displayMonthlyAvgWeightPrevious
+
                     // Weekly metrics block
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -202,17 +228,16 @@ fun EstadisticasTab(
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = "${String.format("%.1f", advStats.weeklyAvgWeightCurrent)} kg",
+                                text = String.format(Locale.US, "%.1f %s", displayWeeklyAvgWeightCurrent, unit),
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Black
                             )
-                            val wkDiff = advStats.weeklyAvgWeightCurrent - advStats.weeklyAvgWeightPrevious
-                            val color = if (wkDiff <= 0.0) Color(0xFF4CAF50) else Color(0xFFF44336)
+                            val wkDiffColor = if (if (isWeightLoss) wkDiff <= 0.0 else wkDiff >= 0.0) Color(0xFF4CAF50) else Color(0xFFF44336)
                             Text(
-                                text = "${if (wkDiff >= 0) "+" else ""}${String.format("%.1f", wkDiff)} kg",
+                                text = "${if (wkDiff >= 0) "+" else ""}${String.format(Locale.US, "%.1f", wkDiff)} $unit",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = color
+                                color = wkDiffColor
                             )
                         }
                     }
@@ -231,17 +256,16 @@ fun EstadisticasTab(
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = "${String.format("%.1f", advStats.monthlyAvgWeightCurrent)} kg",
+                                text = String.format(Locale.US, "%.1f %s", displayMonthlyAvgWeightCurrent, unit),
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Black
                             )
-                            val mnDiff = advStats.monthlyAvgWeightCurrent - advStats.monthlyAvgWeightPrevious
-                            val color = if (mnDiff <= 0.0) Color(0xFF4CAF50) else Color(0xFFF44336)
+                            val mnDiffColor = if (if (isWeightLoss) mnDiff <= 0.0 else mnDiff >= 0.0) Color(0xFF4CAF50) else Color(0xFFF44336)
                             Text(
-                                text = "${if (mnDiff >= 0) "+" else ""}${String.format("%.1f", mnDiff)} kg",
+                                text = "${if (mnDiff >= 0) "+" else ""}${String.format(Locale.US, "%.1f", mnDiff)} $unit",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = color
+                                color = mnDiffColor
                             )
                         }
                     }
@@ -285,71 +309,65 @@ fun EstadisticasTab(
                 }
             }
 
-            // --- BLOQUE DE COMPOSICIÓN CORPORAL AVANZADA ---
-            Text(
-                text = "Composición Corporal Avanzada",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = 12.dp)
-            )
-            CardGrid(
-                card1 = { DonutCompositionCard(leanKg = leanKg, fatKg = fatKg, modifier = Modifier.fillMaxWidth()) },
-                card2 = { com.example.ui.components.FfmiTrendCard(history = measurements, modifier = Modifier.fillMaxWidth()) }
-            )
-
-            // --- BLOQUE DE SALUD METABÓLICA Y NUTRICIÓN ---
-            Text(
-                text = "Salud Metabólica y Requerimiento Diario",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = 12.dp)
-            )
-            CardGrid(
-                card1 = {
-                    HealthAlertsCard(
-                        waist = latestLog.waist,
-                        hip = latestLog.hip,
-                        height = latestLog.height,
-                        age = age,
-                        gender = gender,
-                        modifier = Modifier.fillMaxWidth()
+            // Block Definitions for Reordering (RF-06 & RF-07)
+            val blockHealthNutrition = @Composable {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Salud Metabólica y Requerimiento Diario",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(top = 12.dp)
                     )
-                },
-                card2 = { NutritionMetabolicCard(leanMassKg = leanKg, modifier = Modifier.fillMaxWidth()) }
-            )
-
-            // --- BLOQUE DE SIMETRÍA Y PROPORCIONES ESTÉTICAS ---
-            Text(
-                text = "Simetría y Proporciones Estéticas",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = 12.dp)
-            )
-            CardGrid(
-                card1 = { SymmetryAnalysisCard(log = latestLog, modifier = Modifier.fillMaxWidth()) },
-                card2 = {
-                    val actualBicep = (if (latestLog.bicepLeft > 0) latestLog.bicepLeft else if (latestLog.bicepRight > 0) latestLog.bicepRight else latestLog.bicep)
-                    val actualForearm = (if (latestLog.forearmLeft > 0) latestLog.forearmLeft else if (latestLog.forearmRight > 0) latestLog.forearmRight else 0.0)
-                    val actualThigh = (if (latestLog.thighLeft > 0) latestLog.thighLeft else if (latestLog.thighRight > 0) latestLog.thighRight else latestLog.thigh)
-                    val actualCalf = (if (latestLog.calfLeft > 0) latestLog.calfLeft else if (latestLog.calfRight > 0) latestLog.calfRight else latestLog.calf)
-                    
-                    ReevesProportionsCard(
-                        height = latestLog.height,
-                        chest = latestLog.chest,
-                        waist = latestLog.waist,
-                        hip = latestLog.hip,
-                        neck = latestLog.neck,
-                        bicep = actualBicep,
-                        forearm = actualForearm,
-                        thigh = actualThigh,
-                        calf = actualCalf,
-                        modifier = Modifier.fillMaxWidth()
+                    CardGrid(
+                        card1 = {
+                            HealthAlertsCard(
+                                waist = latestLog.waist,
+                                hip = latestLog.hip,
+                                height = latestLog.height,
+                                age = age,
+                                gender = gender,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        },
+                        card2 = {
+                            NutritionMetabolicCard(
+                                leanMassKg = leanKg,
+                                userGoalType = userGoalType,
+                                userActivityLevel = userActivityLevel,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     )
                 }
-            )
+            }
+
+            val blockComposition = @Composable {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Composición Corporal Avanzada",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                    CardGrid(
+                        card1 = { DonutCompositionCard(leanKg = leanKg, fatKg = fatKg, modifier = Modifier.fillMaxWidth()) },
+                        card2 = { com.example.ui.components.FfmiTrendCard(history = measurements, modifier = Modifier.fillMaxWidth()) }
+                    )
+                }
+            }
+
+            // Goal-based adaptive layout order block placement
+            if (isWeightLoss) {
+                // REDUCCIÓN DE PESO / PÉRDIDA DE GRASA
+                blockHealthNutrition()
+                blockComposition()
+            } else {
+                // AUMENTO DE MASA MUSCULAR / HIPERTROFIA
+                blockComposition()
+                blockHealthNutrition()
+            }
 
             // --- CONCURRENT LINE CHARTS PANEL (RF-03) ---
             Text(
@@ -361,24 +379,37 @@ fun EstadisticasTab(
             )
 
             // 1. Chart: Peso
-            val pesoPoints = chronList.map { it.timestamp to it.weight }
+            val displayWeightPoints = if (isLb) {
+                chronList.map { it.timestamp to it.weight * 2.20462 }
+            } else {
+                chronList.map { it.timestamp to it.weight }
+            }
+            val weightGoalVal = userTargetWeight.toDoubleOrNull()
+            val weightGoalDir = if (isWeightLoss) "downward" else "upward"
+
             BodyLineChart(
                 title = "Evolución de Peso",
-                dataPoints = pesoPoints,
-                valueSuffix = "kg",
+                dataPoints = displayWeightPoints,
+                valueSuffix = unit,
                 lineColor = MaterialTheme.colorScheme.primary,
+                goalValue = weightGoalVal,
+                goalDirection = weightGoalDir,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("chart_peso")
             )
 
             // 2. Chart: Grasa Corporal (%)
+            val fatGoalVal = userTargetFat.toDoubleOrNull()
+            
             val grasaPoints = chronList.filter { it.fatPercentage > 0 }.map { it.timestamp to it.fatPercentage }
             BodyLineChart(
                 title = "Grasa Corporal",
                 dataPoints = grasaPoints,
                 valueSuffix = "%",
                 lineColor = Color(0xFF009688),
+                goalValue = fatGoalVal,
+                goalDirection = "downward",
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("chart_grasa")
@@ -420,28 +451,16 @@ fun EstadisticasTab(
                     .testTag("chart_bicep")
             )
 
-            // 6. Chart: Antebrazo Izquierdo (cm)
-            val forearmLeftPoints = chronList.filter { it.forearmLeft > 0 }.map { it.timestamp to it.forearmLeft }
+            // 6. Chart: Antebrazo (cm)
+            val forearmPoints = chronList.filter { it.forearm > 0 }.map { it.timestamp to it.forearm }
             BodyLineChart(
-                title = "Perímetro de Antebrazo Izq.",
-                dataPoints = forearmLeftPoints,
+                title = "Perímetro de Antebrazo",
+                dataPoints = forearmPoints,
                 valueSuffix = "cm",
                 lineColor = Color(0xFF3F51B5),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("chart_forearm_left")
-            )
-
-            // 7. Chart: Antebrazo Derecho (cm)
-            val forearmRightPoints = chronList.filter { it.forearmRight > 0 }.map { it.timestamp to it.forearmRight }
-            BodyLineChart(
-                title = "Perímetro de Antebrazo Der.",
-                dataPoints = forearmRightPoints,
-                valueSuffix = "cm",
-                lineColor = Color(0xFF2196F3),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("chart_forearm_right")
+                    .testTag("chart_forearm")
             )
 
             // 8. Chart: Pecho (cm)
@@ -475,90 +494,20 @@ fun EstadisticasTab(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Flag, 
+                            imageVector = Icons.Default.EmojiEvents, 
                             contentDescription = "Metas", 
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Establecer Meta Personalizada",
+                            text = "Tus Metas Activas",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }
 
-                    // Goal form selector and input field
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ExposedDropdownMenuBox(
-                            expanded = isGoalTypeDropdownExpanded,
-                            onExpandedChange = { isGoalTypeDropdownExpanded = !isGoalTypeDropdownExpanded },
-                            modifier = Modifier.weight(1.3f)
-                        ) {
-                            OutlinedTextField(
-                                value = goalType,
-                                onValueChange = {},
-                                readOnly = true,
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isGoalTypeDropdownExpanded) },
-                                modifier = Modifier.menuAnchor(),
-                                textStyle = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                label = { Text("Métrica", fontSize = 11.sp) }
-                            )
-
-                            ExposedDropdownMenu(
-                                expanded = isGoalTypeDropdownExpanded,
-                                onDismissRequest = { isGoalTypeDropdownExpanded = false }
-                            ) {
-                                val metricsOptions = listOf("Peso (kg)", "Grasa (%)", "Cintura (cm)", "Cuello (cm)", "Bíceps (cm)", "Pecho (cm)")
-                                metricsOptions.forEach { option ->
-                                    DropdownMenuItem(
-                                        text = { Text(option) },
-                                        onClick = {
-                                            viewModel.goalTypeInput.value = option
-                                            isGoalTypeDropdownExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        OutlinedTextField(
-                            value = goalTarget,
-                            onValueChange = { viewModel.goalTargetInput.value = it },
-                            label = { Text("Valor Objetivo") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f).testTag("goal_target_input"),
-                            placeholder = { Text("Ej: 75") },
-                            singleLine = true
-                        )
-
-                        IconButton(
-                            onClick = { viewModel.addNewGoal() },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
-                                .testTag("add_goal_button"),
-                            colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
-                        ) {
-                            Icon(imageVector = Icons.Default.Add, contentDescription = "Guardar Meta")
-                        }
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-
-                    // Active goals list tracker
-                    Text(
-                        text = "Tus Metas Activas",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                    )
-
                     if (goals.isEmpty()) {
                         Text(
-                            text = "No has configurado ninguna meta. Define tu peso objetivo o porcentaje de grasa ideal en el formulario de arriba para visualizar tu progreso.",
+                            text = "No hay metas activas configuradas. Puedes configurar tu peso y porcentaje de grasa objetivo en tu Perfil.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             modifier = Modifier.padding(vertical = 8.dp)
@@ -751,6 +700,7 @@ fun EstadisticasTab(
         }
 
         Spacer(modifier = Modifier.height(70.dp))
+        }
     }
 }
 
@@ -844,5 +794,455 @@ fun MetricChip(
                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+fun LiteEstadisticasScreen(
+    viewModel: MeasurementViewModel,
+    modifier: Modifier = Modifier
+) {
+    val measurements by viewModel.measurements.collectAsState()
+    val goals by viewModel.goals.collectAsState()
+    val isLb by viewModel.useLb.collectAsState()
+
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "Mi Progreso (LITE)",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        val lastLog = measurements.firstOrNull()
+        if (lastLog == null) {
+            // Empty state for LITE screen
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Timeline,
+                        contentDescription = "Sin datos",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                        modifier = Modifier.size(56.dp)
+                    )
+                    Text(
+                        text = "Aún no tienes mediciones registradas.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Ve a la sección 'Registrar' y guarda tu primera medición para ver los gráficos aquí.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            val currentWeight = if (isLb) lastLog.weight * 2.20462 else lastLog.weight
+            val modeSuffix = if (isLb) "lbs" else "kg"
+
+            val prevLog = if (measurements.size > 1) measurements[1] else null
+            val diffRaw = if (prevLog != null) lastLog.weight - prevLog.weight else 0.0
+            val diff = if (isLb) diffRaw * 2.20462 else diffRaw
+
+            // --- HEADER CURRENT WEIGHT & TREND BADGE ---
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "MY WEIGHT",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${String.format("%.1f", currentWeight)} $modeSuffix",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                    // Change badge from previous session
+                    val isLoss = diff < 0
+                    val badgeColor = if (isLoss) Color(0xFF4CAF50) else if (diff > 0) Color(0xFFFF9800) else Color.Gray
+                    val badgeSign = if (diff > 0) "+" else ""
+
+                    Surface(
+                        color = badgeColor.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.testTag("trend_badge_lite")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isLoss) Icons.Default.ArrowDownward else if (diff > 0) Icons.Default.ArrowUpward else Icons.Default.HorizontalRule,
+                                contentDescription = "Cambio",
+                                tint = badgeColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "$badgeSign${String.format("%.1f", diff)} $modeSuffix",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = badgeColor
+                            )
+                        }
+                    }
+                }
+            }
+
+            // --- WEEKLY BAR CHART SECTION ---
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Historial Semanal",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    // Draw the custom vertical bars
+                    val chartLogs = measurements.take(7).reversed()
+                    val maxVal = chartLogs.maxOfOrNull { if (isLb) it.weight * 2.20462 else it.weight } ?: 100.0
+                    val minVal = chartLogs.minOfOrNull { if (isLb) it.weight * 2.20462 else it.weight } ?: 40.0
+                    
+                    val chartMax = maxVal * 1.1f
+                    val chartMin = (minVal * 0.9f).coerceAtLeast(0.0)
+
+                    // Locate weight goal target line
+                    val weightGoalObj = goals.firstOrNull { it.type.lowercase().contains("peso") }
+                    val goalLineVal = weightGoalObj?.targetValue?.let { if (isLb) it * 2.20462 else it }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .padding(horizontal = 8.dp)
+                    ) {
+                        // Draw horizontal dashed Goal Line if exists
+                        goalLineVal?.let { gVal ->
+                            val ratio = ((gVal - chartMin) / (chartMax - chartMin)).coerceIn(0.0, 1.0).toFloat()
+                            if (ratio in 0f..1f) {
+                                val lineYPosition = (140 * (1f - ratio)).dp
+                                
+                                // Dotted goal indicator layout
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = lineYPosition)
+                                        .height(1.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                        )
+                                )
+                                Text(
+                                    text = "Target: ${String.format("%.1f", gVal)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(top = lineYPosition - 14.dp, end = 4.dp)
+                                )
+                            }
+                        }
+
+                        // Let's render the columns
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            val formatter = java.text.SimpleDateFormat("dd/MM", java.util.Locale.getDefault())
+                            chartLogs.forEachIndexed { index, m ->
+                                val wVal = if (isLb) m.weight * 2.20462 else m.weight
+                                val progress = ((wVal - chartMin) / (chartMax - chartMin)).coerceIn(0.0, 1.0).toFloat()
+                                val barHeight = (140 * progress).dp
+
+                                val dayLabel = formatter.format(java.util.Date(m.timestamp))
+
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Bottom,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        text = String.format("%.1f", wVal),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .width(22.dp)
+                                            .height(barHeight)
+                                            .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
+                                            .background(
+                                                color = if (index == chartLogs.lastIndex) MaterialTheme.colorScheme.primary
+                                                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                            )
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = dayLabel,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        fontSize = 9.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- TU IMC SECTION WITH DYNAMIC POSITIONING DOT ---
+            val lastBmi = BodyCalculator.calculateBMI(lastLog.weight, lastLog.height)
+            val bmiClassification = BodyCalculator.getBMIClassification(lastBmi)
+            val bmiColor = BodyCalculator.getBMIColor(lastBmi)
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Tu IMC (Índice de Masa Corporal)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${String.format("%.1f", lastBmi)}",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black,
+                            color = Color(bmiColor)
+                        )
+                        Surface(
+                            color = Color(bmiColor).copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = bmiClassification,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(bmiColor),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    // Multi-segment horizontal strip (representing brackets: Bajo, Normal, Sobrepeso, Obeso)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Bajo (Cyan)
+                        Box(
+                            modifier = Modifier
+                                .weight(18.5f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(Color(0xFF03A9F4))
+                        )
+                        // Normal (Green)
+                        Box(
+                            modifier = Modifier
+                                .weight(6.4f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(Color(0xFF4CAF50))
+                        )
+                        // Sobrepeso (Yellow)
+                        Box(
+                            modifier = Modifier
+                                .weight(5.0f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(Color(0xFFFF9800))
+                        )
+                        // Obeso (Red)
+                        Box(
+                            modifier = Modifier
+                                .weight(10.0f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(Color(0xFFF44336))
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Bajo", fontSize = 9.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                        Text("Normal", fontSize = 9.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                        Text("Sobrepeso", fontSize = 9.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                        Text("Obeso", fontSize = 9.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            // --- TU PROGRESO / YOUR PROGRESS SECTION ---
+            val weightGoalObj = goals.firstOrNull { it.type.lowercase().contains("peso") }
+            if (weightGoalObj != null) {
+                val startWeight = if (isLb) weightGoalObj.startingValue * 2.20462 else weightGoalObj.startingValue
+                val targetWeight = if (isLb) weightGoalObj.targetValue * 2.20462 else weightGoalObj.targetValue
+
+                val isWeightLoss = startWeight > targetWeight
+                val pct = if (isWeightLoss) {
+                    ((startWeight - currentWeight) / (startWeight - targetWeight)).coerceIn(0.0, 1.0)
+                } else {
+                    ((currentWeight - startWeight) / (targetWeight - startWeight)).coerceIn(0.0, 1.0)
+                }
+                
+                val weightLeft = (currentWeight - targetWeight).coerceAtLeast(0.0)
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = "Tu Objetivo",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("Iniciaste", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                Text("${String.format("%.1f", startWeight)} $modeSuffix", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Resta", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                Text("${String.format("%.1f", weightLeft)} $modeSuffix", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                            }
+
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Meta", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                Text("${String.format("%.1f", targetWeight)} $modeSuffix", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            LinearProgressIndicator(
+                                progress = { pct.toFloat() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("0%", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                Text("${String.format("%.0f", pct * 100)}% Completado", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text("100%", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Sin objetivo de peso activo",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Crea un objetivo en la vista PRO de estadísticas para ver tu progreso porcentual aquí.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
