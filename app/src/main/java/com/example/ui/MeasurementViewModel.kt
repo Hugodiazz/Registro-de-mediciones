@@ -297,27 +297,84 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
      */
     fun saveMeasurement() {
         viewModelScope.launch {
-            val weightRaw = weightInput.value.toDoubleOrNull()
-            val height = heightInput.value.toDoubleOrNull()
+            // Helper function to validate double inputs
+            fun validateField(valueStr: String, fieldName: String, isRequired: Boolean, min: Double, max: Double, unit: String = "cm"): Double? {
+                val trimmed = valueStr.trim()
+                if (trimmed.isEmpty()) {
+                    if (isRequired) {
+                        _uiMessage.value = "La medida de $fieldName es requerida."
+                        return null
+                    }
+                    return 0.0
+                }
+                val parsed = trimmed.toDoubleOrNull()
+                if (parsed == null) {
+                    _uiMessage.value = "Por favor ingresa un número válido para: $fieldName"
+                    return null
+                }
+                if (parsed <= 0.0) {
+                    _uiMessage.value = "La medida de $fieldName debe ser un número positivo mayor que cero."
+                    return null
+                }
+                if (parsed < min || parsed > max) {
+                    _uiMessage.value = "La medida de $fieldName tiene un valor fuera del rango lógico ($min $unit - $max $unit)."
+                    return null
+                }
+                return parsed
+            }
 
-            if (weightRaw == null || weightRaw <= 0.0) {
-                _uiMessage.value = "Por favor, ingresa un peso válido mayor a 0."
+            // 1. Validate Weight
+            val weight = validateField(weightInput.value, "Peso", isRequired = true, min = 20.0, max = 600.0, unit = "kg")
+                ?: return@launch
+
+            // 2. Validate Height
+            val height = validateField(heightInput.value, "Altura", isRequired = true, min = 50.0, max = 280.0, unit = "cm")
+                ?: return@launch
+
+            // 3. Validate optional/required body tape measurements
+            // If we use Calculated Fat %, neck, waist, (and hip for females) are strictly required!
+            val gender = genderInput.value
+            val isFemale = gender.lowercase() == "femenino"
+            val isNavyFat = !isFatManual.value
+
+            val neck = validateField(neckInput.value, "Cuello", isRequired = isNavyFat, min = 15.0, max = 80.0)
+                ?: return@launch
+            val waist = validateField(waistInput.value, "Cintura", isRequired = isNavyFat, min = 30.0, max = 250.0)
+                ?: return@launch
+            val hip = validateField(hipInput.value, "Cadera", isRequired = (isNavyFat && isFemale), min = 40.0, max = 250.0)
+                ?: return@launch
+
+            // 4. Check basic logical consistency between relational fields
+            if (neck > 0.0 && waist > 0.0 && neck >= waist) {
+                _uiMessage.value = "El cuello ($neck cm) debe ser menor que la cintura ($waist cm)."
                 return@launch
             }
-            if (height == null || height <= 0.0) {
-                _uiMessage.value = "Por favor, ingresa una altura válida mayor a 0."
-                return@launch
+            if (height > 0.0) {
+                if (neck > 0.0 && neck >= height) {
+                    _uiMessage.value = "El cuello ($neck cm) debe ser menor que la altura ($height cm)."
+                    return@launch
+                }
+                if (waist > 0.0 && waist >= height) {
+                    _uiMessage.value = "La cintura ($waist cm) debe ser menor que la altura ($height cm)."
+                    return@launch
+                }
+                if (hip > 0.0 && hip >= height) {
+                    _uiMessage.value = "La cadera ($hip cm) debe ser menor que la altura ($height cm)."
+                    return@launch
+                }
             }
 
-            val weight = weightRaw
-
-            // Determine target fat percentage
+            // 5. Determine target fat percentage
             val finalFat = if (isFatManual.value) {
-                val manualStr = manualFatInput.value
-                if (manualStr.isNotBlank()) {
+                val manualStr = manualFatInput.value.trim()
+                if (manualStr.isNotEmpty()) {
                     val manualVal = manualStr.toDoubleOrNull()
-                    if (manualVal == null || manualVal < 0.0 || manualVal > 100.0) {
-                        _uiMessage.value = "Ingresa un porcentaje de grasa manual válido (0% - 100%)."
+                    if (manualVal == null) {
+                        _uiMessage.value = "Por favor ingresa un número válido para el % de grasa."
+                        return@launch
+                    }
+                    if (manualVal < 0.0 || manualVal > 100.0) {
+                        _uiMessage.value = "El porcentaje de grasa manual debe estar entre 0% y 100%."
                         return@launch
                     }
                     manualVal
@@ -333,33 +390,29 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
                 calculatedVal
             }
 
-            val neck = neckInput.value.toDoubleOrNull() ?: 0.0
-            val waist = waistInput.value.toDoubleOrNull() ?: 0.0
-            val hip = hipInput.value.toDoubleOrNull() ?: 0.0
-
-            if (!isFatManual.value) {
-                if (neck <= 0.0 || waist <= 0.0) {
-                    _uiMessage.value = "Para calcular la grasa se requiere el cuello y la cintura."
-                    return@launch
-                }
-                if (genderInput.value.lowercase() == "femenino" && hip <= 0.0) {
-                    _uiMessage.value = "Las mujeres requieren la medida de la cadera para calcular la grasa."
-                    return@launch
-                }
-            }
-
-            val chest = chestInput.value.toDoubleOrNull() ?: 0.0
-            val bicep = bicepInput.value.toDoubleOrNull() ?: 0.0
-            val bicepLeft = bicepLeftInput.value.toDoubleOrNull() ?: 0.0
-            val bicepRight = bicepRightInput.value.toDoubleOrNull() ?: 0.0
-            val thigh = thighInput.value.toDoubleOrNull() ?: 0.0
-            val thighLeft = thighLeftInput.value.toDoubleOrNull() ?: 0.0
-            val thighRight = thighRightInput.value.toDoubleOrNull() ?: 0.0
-            val calf = calfInput.value.toDoubleOrNull() ?: 0.0
-            val calfLeft = calfLeftInput.value.toDoubleOrNull() ?: 0.0
-            val calfRight = calfRightInput.value.toDoubleOrNull() ?: 0.0
-
-            val forearm = forearmInput.value.toDoubleOrNull() ?: 0.0
+            // 6. Validate rest of optional fields
+            val chest = validateField(chestInput.value, "Pecho", isRequired = false, min = 40.0, max = 200.0)
+                ?: return@launch
+            val bicep = validateField(bicepInput.value, "Bíceps", isRequired = false, min = 10.0, max = 100.0)
+                ?: return@launch
+            val bicepLeft = validateField(bicepLeftInput.value, "Bíceps Izquierdo", isRequired = false, min = 10.0, max = 100.0)
+                ?: return@launch
+            val bicepRight = validateField(bicepRightInput.value, "Bíceps Derecho", isRequired = false, min = 10.0, max = 100.0)
+                ?: return@launch
+            val forearm = validateField(forearmInput.value, "Antebrazo", isRequired = false, min = 10.0, max = 80.0)
+                ?: return@launch
+            val thigh = validateField(thighInput.value, "Muslo", isRequired = false, min = 20.0, max = 150.0)
+                ?: return@launch
+            val thighLeft = validateField(thighLeftInput.value, "Muslo Izquierdo", isRequired = false, min = 20.0, max = 150.0)
+                ?: return@launch
+            val thighRight = validateField(thighRightInput.value, "Muslo Derecho", isRequired = false, min = 20.0, max = 150.0)
+                ?: return@launch
+            val calf = validateField(calfInput.value, "Pantorrilla", isRequired = false, min = 10.0, max = 100.0)
+                ?: return@launch
+            val calfLeft = validateField(calfLeftInput.value, "Pantorrilla Izquierda", isRequired = false, min = 10.0, max = 100.0)
+                ?: return@launch
+            val calfRight = validateField(calfRightInput.value, "Pantorrilla Derecha", isRequired = false, min = 10.0, max = 100.0)
+                ?: return@launch
 
             val entity = MeasurementEntity(
                 timestamp = System.currentTimeMillis(),
@@ -497,8 +550,8 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
         }
     }
 
-    fun getAdvancedStats(): AdvStats {
-        val rawList = measurements.value
+    fun getAdvancedStats(customList: List<MeasurementEntity>? = null): AdvStats {
+        val rawList = customList ?: measurements.value
         if (rawList.isEmpty()) return AdvStats()
 
         val chronList = rawList.sortedBy { it.timestamp }

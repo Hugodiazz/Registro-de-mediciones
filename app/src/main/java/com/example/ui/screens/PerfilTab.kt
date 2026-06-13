@@ -496,7 +496,8 @@ fun PerfilTab(
                             .statusBarsPadding()
                             .height(56.dp)
                             .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         IconButton(
                             onClick = { viewModel.goBackFromProfile() },

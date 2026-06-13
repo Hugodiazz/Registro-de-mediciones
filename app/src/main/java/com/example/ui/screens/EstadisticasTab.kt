@@ -44,7 +44,14 @@ fun EstadisticasTab(
         LiteEstadisticasScreen(viewModel = viewModel, modifier = modifier)
     } else {
         val context = LocalContext.current
-        val measurements by viewModel.measurements.collectAsState()
+        val measurementsRaw by viewModel.measurements.collectAsState()
+        val measurements = remember(measurementsRaw) {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            measurementsRaw
+                .groupBy { sdf.format(java.util.Date(it.timestamp)) }
+                .map { (_, list) -> list.maxByOrNull { it.timestamp }!! }
+                .sortedByDescending { it.timestamp }
+        }
         val goals by viewModel.goals.collectAsState()
         val userGoalType by viewModel.userGoalType.collectAsState()
         val userTargetWeight by viewModel.userTargetWeight.collectAsState()
@@ -60,7 +67,7 @@ fun EstadisticasTab(
         var isGoalTypeDropdownExpanded by remember { mutableStateOf(false) }
 
         // Get advanced averages splits
-        val advStats = viewModel.getAdvancedStats()
+        val advStats = viewModel.getAdvancedStats(measurements)
 
         Column(
             modifier = modifier
@@ -802,7 +809,14 @@ fun LiteEstadisticasScreen(
     viewModel: MeasurementViewModel,
     modifier: Modifier = Modifier
 ) {
-    val measurements by viewModel.measurements.collectAsState()
+    val measurementsRaw by viewModel.measurements.collectAsState()
+    val measurements = remember(measurementsRaw) {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        measurementsRaw
+            .groupBy { sdf.format(java.util.Date(it.timestamp)) }
+            .map { (_, list) -> list.maxByOrNull { it.timestamp }!! }
+            .sortedByDescending { it.timestamp }
+    }
     val goals by viewModel.goals.collectAsState()
     val isLb by viewModel.useLb.collectAsState()
 

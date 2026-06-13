@@ -33,6 +33,7 @@ import com.example.ui.screens.HistorialTab
 import com.example.ui.screens.InfoTab
 import com.example.ui.screens.RegistrarTab
 import com.example.ui.screens.PerfilTab
+import com.example.ui.screens.OnboardingScreen
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -62,6 +63,7 @@ fun MainScreen(viewModel: MeasurementViewModel) {
     val currentTab by viewModel.currentTab.collectAsState()
     val uiMessage by viewModel.uiMessage.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val profileAge by viewModel.profileAge.collectAsState()
 
     // Observe trigger alerts and display them via Material 3 Snackbar
     LaunchedEffect(uiMessage) {
@@ -74,17 +76,20 @@ fun MainScreen(viewModel: MeasurementViewModel) {
         }
     }
 
-    val topBarTitle = when (currentTab) {
-        0 -> "Métrica"
-        1 -> "Métrica"
-        2 -> "Métrica"
-        3 -> "Ayuda Médica y Guía"
-        4 -> "Métrica"
-        else -> "Métrica"
-    }
+    if (profileAge.isBlank()) {
+        OnboardingScreen(viewModel = viewModel)
+    } else {
+        val topBarTitle = when (currentTab) {
+            0 -> "Métrica"
+            1 -> "Métrica"
+            2 -> "Métrica"
+            3 -> "Ayuda Médica y Guía"
+            4 -> "Métrica"
+            else -> "Métrica"
+        }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
         topBar = {
             if (currentTab != 4) {
                 val photoUri by viewModel.profilePhotoUri.collectAsState()
@@ -349,4 +354,5 @@ fun MainScreen(viewModel: MeasurementViewModel) {
             }
         }
     }
+}
 }
