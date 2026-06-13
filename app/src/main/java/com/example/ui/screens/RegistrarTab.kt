@@ -87,7 +87,7 @@ fun RegistrarTab(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Nueva Medición",
+                    text = "Métrica",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -565,10 +565,9 @@ fun LiteRegistrarScreen(
 ) {
     val weight by viewModel.weightInput.collectAsState()
     val notes by viewModel.notesInput.collectAsState()
-    val useLb by viewModel.useLb.collectAsState()
 
     var showCommentDialog by remember { mutableStateOf(false) }
-    var showPhotoDialog by remember { mutableStateOf(false) }
+    var isKeyboardVisible by remember { mutableStateOf(false) }
 
     val onKeyClick: (String) -> Unit = { char ->
         val current = viewModel.weightInput.value
@@ -617,329 +616,269 @@ fun LiteRegistrarScreen(
         )
     }
 
-    if (showPhotoDialog) {
-        AlertDialog(
-            onDismissRequest = { showPhotoDialog = false },
-            title = { Text("Simular Foto") },
-            text = {
-                Text("¿Deseas simular la captura de una fotografía de tu progreso para guardarla en el historial?")
-            },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.profilePhotoUri.value = "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300"
-                    showPhotoDialog = false
-                    viewModel.saveProfile(
-                        viewModel.profileName.value,
-                        viewModel.profileAge.value,
-                        viewModel.profileGender.value,
-                        viewModel.profileHeight.value,
-                        "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300"
-                    )
-                }) {
-                    Text("Tomar Foto 📸")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPhotoDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
-
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(Color(0xFF101415))
     ) {
-        // Switcher context row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Nueva Medición (LITE)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            TextButton(
-                onClick = { viewModel.clearForm() },
-                modifier = Modifier.testTag("lite_clear_button")
-            ) {
-                Icon(imageVector = Icons.Default.DeleteSweep, contentDescription = "Cancelar")
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Limpiar", fontWeight = FontWeight.Bold)
-            }
-        }
-
-        // --- DIAL CIRCLE HOVERING METRIC ---
-        Box(
+        Column(
             modifier = Modifier
-                .size(240.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
-                    shape = CircleShape
-                )
-                .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape)
-                .padding(8.dp),
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val centerX = size.width / 2f
-                val centerY = size.height / 2f
-                val radius = (size.minDimension / 2f) - 10f
-
-                // Draw standard surrounding guidance rings from mockup
-                drawCircle(
-                    color = Color(0x1F7C4DFF),
-                    radius = radius,
-                    center = Offset(centerX, centerY),
-                    style = Stroke(width = 2.dp.toPx())
-                )
-
-                // Little circular dots matching high fidelity mockup colors
-                drawCircle(
-                    color = Color(0xFF00E5FF), // Cyan dot
-                    radius = 4.dp.toPx(),
-                    center = Offset(
-                        x = centerX + radius * cos(Math.toRadians(210.0)).toFloat(),
-                        y = centerY + radius * sin(Math.toRadians(210.0)).toFloat()
-                    )
-                )
-
-                drawCircle(
-                    color = Color(0xFFFF4081), // Pinkish dot
-                    radius = 3.5.dp.toPx(),
-                    center = Offset(
-                        x = centerX + radius * cos(Math.toRadians(310.0)).toFloat(),
-                        y = centerY + radius * sin(Math.toRadians(310.0)).toFloat()
-                    )
-                )
-
-                drawCircle(
-                    color = Color(0xFFFF6D00), // Orange dot
-                    radius = 4.dp.toPx(),
-                    center = Offset(
-                        x = centerX + radius * cos(Math.toRadians(45.0)).toFloat(),
-                        y = centerY + radius * sin(Math.toRadians(45.0)).toFloat()
-                    )
-                )
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            // Central Area where the circle is centered. Squeezes gracefully when keyboard appears
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "Enter Weight",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-
-                Text(
-                    text = if (weight.isNotBlank()) weight else "0.0",
-                    style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Black),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.testTag("lite_dial_weight_value")
-                )
-
-                // Rounded Pill toggle KG / LB
-                Row(
+                // --- DIAL CIRCLE HOVERING METRIC ---
+                Box(
                     modifier = Modifier
-                        .width(130.dp)
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(17.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(17.dp))
-                        .padding(2.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .size(240.dp)
+                        .clip(CircleShape)
+                        .background(
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                        )
+                        .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape)
+                        .clickable { isKeyboardVisible = !isKeyboardVisible }
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(if (!useLb) MaterialTheme.colorScheme.primary else Color.Transparent)
-                            .clickable {
-                                if (useLb) {
-                                    val currentVal = weight.toDoubleOrNull() ?: 0.0
-                                    viewModel.toggleUseLb(false)
-                                    viewModel.weightInput.value = if (currentVal > 0) String.format("%.1f", currentVal / 2.20462) else ""
-                                }
-                            }
-                            .testTag("lite_unit_kg"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "KG",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = if (!useLb) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val centerX = size.width / 2f
+                        val centerY = size.height / 2f
+                        val radius = (size.minDimension / 2f) - 10f
+
+                        // Draw standard surrounding guidance rings from mockup
+                        drawCircle(
+                            color = Color(0x1F7C4DFF),
+                            radius = radius,
+                            center = Offset(centerX, centerY),
+                            style = Stroke(width = 2.dp.toPx())
+                        )
+
+                        // Little circular dots matching high fidelity mockup colors
+                        drawCircle(
+                            color = Color(0xFF00E5FF), // Cyan dot
+                            radius = 4.dp.toPx(),
+                            center = Offset(
+                                x = centerX + radius * cos(Math.toRadians(210.0)).toFloat(),
+                                y = centerY + radius * sin(Math.toRadians(210.0)).toFloat()
+                            )
+                        )
+
+                        drawCircle(
+                            color = Color(0xFFFF4081), // Pinkish dot
+                            radius = 3.5.dp.toPx(),
+                            center = Offset(
+                                x = centerX + radius * cos(Math.toRadians(310.0)).toFloat(),
+                                y = centerY + radius * sin(Math.toRadians(310.0)).toFloat()
+                            )
+                        )
+
+                        drawCircle(
+                            color = Color(0xFFFF6D00), // Orange dot
+                            radius = 4.dp.toPx(),
+                            center = Offset(
+                                x = centerX + radius * cos(Math.toRadians(45.0)).toFloat(),
+                                y = centerY + radius * sin(Math.toRadians(45.0)).toFloat()
+                            )
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(if (useLb) MaterialTheme.colorScheme.primary else Color.Transparent)
-                            .clickable {
-                                if (!useLb) {
-                                    val currentVal = weight.toDoubleOrNull() ?: 0.0
-                                    viewModel.toggleUseLb(true)
-                                    viewModel.weightInput.value = if (currentVal > 0) String.format("%.1f", currentVal * 2.20462) else ""
-                                }
-                            }
-                            .testTag("lite_unit_lb"),
-                        contentAlignment = Alignment.Center
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            "LB",
-                            style = MaterialTheme.typography.labelSmall,
+                            text = "Peso Actual",
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (useLb) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                         )
+
+                        val displayNum = if (weight.isNotBlank()) weight else "Ingresar"
+                        Text(
+                            text = displayNum,
+                            style = if (weight.isNotBlank()) MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Black)
+                                     else MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.testTag("lite_dial_weight_value")
+                        )
+
+                        if (weight.isNotBlank()) {
+                            Text(
+                                text = "kg",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Text(
+                                text = "Toca para registrar",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 10.sp
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // --- ROUNDED ACTION BUTTONS (Photo, Comment) ---
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Button(
-                onClick = { showPhotoDialog = true },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-                    .testTag("lite_photo_button"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                shape = RoundedCornerShape(16.dp)
+            // Keyboard/Action buttons section at the bottom
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(imageVector = Icons.Default.PhotoCamera, contentDescription = "Photo")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Photo", fontWeight = FontWeight.Bold)
-            }
+                // --- ACTION BUTTONS (Only Notes/Comments, no photo) ---
+                if (!isKeyboardVisible) {
+                    Button(
+                        onClick = { showCommentDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("lite_comment_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.AddComment, contentDescription = "Nota")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = if (notes.isBlank()) "Agregar Nota" else "Editar Nota", fontWeight = FontWeight.Bold)
+                    }
+                }
 
-            Button(
-                onClick = { showCommentDialog = true },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-                    .testTag("lite_comment_button"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(imageVector = Icons.Default.AddComment, contentDescription = "Comment")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Comment", fontWeight = FontWeight.Bold)
-            }
-        }
-
-        // --- DONE BUTTON ---
-        Button(
-            onClick = { viewModel.saveMeasurement() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .testTag("lite_done_button"),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            shape = RoundedCornerShape(26.dp)
-        ) {
-            Text("Done", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        }
-
-        // --- CUSTOM KEYBOARD FOR FLUID EMULATOR TYPING ---
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            val keyRows = listOf(
-                listOf("1", "2", "3"),
-                listOf("4", "5", "6"),
-                listOf("7", "8", "9"),
-                listOf(".", "0", "BACKSPACE")
-            )
-
-            val alphabets = mapOf(
-                "2" to "ABC", "3" to "DEF",
-                "4" to "GHI", "5" to "JKL", "6" to "MNO",
-                "7" to "PQRS", "8" to "TUV", "9" to "WXYZ"
-            )
-
-            keyRows.forEach { rowKeys ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // --- CUSTOM KEYBOARD FOR FLUID EMULATOR TYPING (Only visible when circle clicked) ---
+                AnimatedVisibility(
+                    visible = isKeyboardVisible,
+                    enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
                 ) {
-                    rowKeys.forEach { key ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
-                                .clickable {
-                                    if (key == "BACKSPACE") onDeleteClick() else onKeyClick(key)
-                                }
-                                .testTag("kb_key_$key"),
-                            contentAlignment = Alignment.Center
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Quick option to view/edit note right above keyboard
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (key == "BACKSPACE") {
-                                Icon(
-                                    imageVector = Icons.Default.Backspace,
-                                    contentDescription = "Delete",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
+                            Text(
+                                text = if (notes.isNotBlank()) "Nota: $notes" else "Sin notas registradas",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                onClick = { showCommentDialog = true },
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text(
+                                    text = if (notes.isBlank()) "Añadir nota" else "Editar nota",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold
                                 )
-                            } else {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = key,
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    val subText = alphabets[key] ?: ""
-                                    if (subText.isNotEmpty()) {
-                                        Text(
-                                            text = subText,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Medium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                            fontSize = 9.sp
-                                        )
+                            }
+                        }
+
+                        val keyRows = listOf(
+                            listOf("1", "2", "3"),
+                            listOf("4", "5", "6"),
+                            listOf("7", "8", "9"),
+                            listOf(".", "0", "BACKSPACE")
+                        )
+
+                        val alphabets = mapOf(
+                            "2" to "ABC", "3" to "DEF",
+                            "4" to "GHI", "5" to "JKL", "6" to "MNO",
+                            "7" to "PQRS", "8" to "TUV", "9" to "WXYZ"
+                        )
+
+                        keyRows.forEach { rowKeys ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                rowKeys.forEach { key ->
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(56.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                                            .clickable {
+                                                if (key == "BACKSPACE") onDeleteClick() else onKeyClick(key)
+                                            }
+                                            .testTag("kb_key_$key"),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (key == "BACKSPACE") {
+                                            Icon(
+                                                imageVector = Icons.Default.Backspace,
+                                                contentDescription = "Borrar",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        } else {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
+                                                Text(
+                                                    text = key,
+                                                    style = MaterialTheme.typography.titleLarge,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                val subText = alphabets[key] ?: ""
+                                                if (subText.isNotEmpty()) {
+                                                    Text(
+                                                        text = subText,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                                        fontSize = 9.sp
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+
+                // --- DONE BUTTON ---
+                Button(
+                    onClick = { 
+                        if (weight.isBlank() || weight.toDoubleOrNull() == null || weight.toDoubleOrNull()!! <= 0) {
+                            viewModel.showUiMessage("Por favor ingresa un peso válido mayor a 0.")
+                        } else {
+                            viewModel.saveMeasurement() 
+                            isKeyboardVisible = false
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("lite_done_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(26.dp)
+                ) {
+                    Text("Registrar Peso", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
         }
-
-        Spacer(modifier = Modifier.height(80.dp))
     }
 }
 

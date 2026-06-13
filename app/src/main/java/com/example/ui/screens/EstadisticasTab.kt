@@ -816,7 +816,7 @@ fun LiteEstadisticasScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Mi Progreso (LITE)",
+            text = "Mi Progreso",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
@@ -879,7 +879,7 @@ fun LiteEstadisticasScreen(
                 ) {
                     Column {
                         Text(
-                            text = "MY WEIGHT",
+                            text = "PESO",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
@@ -1057,7 +1057,7 @@ fun LiteEstadisticasScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Tu IMC (Índice de Masa Corporal)",
+                        text = "Índice de Masa Corporal (IMC)",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -1154,7 +1154,8 @@ fun LiteEstadisticasScreen(
                     ((currentWeight - startWeight) / (targetWeight - startWeight)).coerceIn(0.0, 1.0)
                 }
                 
-                val weightLeft = (currentWeight - targetWeight).coerceAtLeast(0.0)
+                val isGoalCompleted = if (isWeightLoss) currentWeight <= targetWeight else currentWeight >= targetWeight
+                val weightLeft = if (isGoalCompleted) 0.0 else (if (isWeightLoss) (currentWeight - targetWeight) else (targetWeight - currentWeight)).coerceAtLeast(0.0)
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -1167,11 +1168,30 @@ fun LiteEstadisticasScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Text(
-                            text = "Tu Objetivo",
+                            text = "Objetivo",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+
+                        if (isGoalCompleted) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFF00F0FF).copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                    .border(1.dp, Color(0xFF00F0FF), RoundedCornerShape(8.dp))
+                                    .padding(12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "¡Meta de Peso Alcanzada! 🎉\nVe a perfil para establecer una nueva meta.",
+                                    color = Color(0xFF00F0FF),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1184,7 +1204,7 @@ fun LiteEstadisticasScreen(
                             }
 
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Resta", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                Text("Faltan", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                                 Text("${String.format("%.1f", weightLeft)} $modeSuffix", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                             }
 
@@ -1233,7 +1253,7 @@ fun LiteEstadisticasScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Crea un objetivo en la vista PRO de estadísticas para ver tu progreso porcentual aquí.",
+                            text = "Crea un objetivo en el apartado de Perfil para ver tu progreso porcentual aquí.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Gray,
                             textAlign = TextAlign.Center

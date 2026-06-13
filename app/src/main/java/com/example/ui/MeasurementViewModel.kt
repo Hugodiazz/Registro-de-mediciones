@@ -45,7 +45,7 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
 
     // LITE or PRO Mode state from SharedPreferences
     val isLiteMode = MutableStateFlow(sharedPrefs.getBoolean("isLiteMode", false))
-    val useLb = MutableStateFlow(sharedPrefs.getBoolean("useLb", false))
+    val useLb = MutableStateFlow(false)
 
     // --- DYNAMIC GOAL SETTING (RF-06 & RF-07) ---
     val userGoalType = MutableStateFlow(sharedPrefs.getString("userGoalType", "Reducción de Peso / Pérdida de Grasa") ?: "Reducción de Peso / Pérdida de Grasa")
@@ -54,16 +54,45 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
     val userActivityLevel = MutableStateFlow(sharedPrefs.getString("userActivityLevel", "Moderado") ?: "Moderado")
 
     fun toggleLiteMode(enabled: Boolean) {
-        sharedPrefs.edit().putBoolean("isLiteMode", enabled).apply()
+        sharedPrefs.edit().apply {
+            putBoolean("isLiteMode", enabled)
+            putBoolean("useLb", false)
+        }.apply()
         isLiteMode.value = enabled
+        useLb.value = false
     }
 
     fun toggleUseLb(enabled: Boolean) {
-        sharedPrefs.edit().putBoolean("useLb", enabled).apply()
-        useLb.value = enabled
+        sharedPrefs.edit().putBoolean("useLb", false).apply()
+        useLb.value = false
     }
 
     fun saveGoalSettings(goalType: String, targetWeight: String, targetFat: String, activityLevel: String) {
+        val latestMeas = measurements.value.firstOrNull()
+        val tWeight = targetWeight.toDoubleOrNull()
+
+        if (tWeight != null && tWeight > 0.0) {
+            val goalEnum = goalType.ifBlank { "Reducción de Peso / Pérdida de Grasa" }
+            if (latestMeas == null) {
+                _uiMessage.value = "Primero registra una medición de peso actual en 'Registrar' para poder comprobar tu meta."
+                return
+            }
+            val currentWeight = latestMeas.weight
+            val unitStr = "kg"
+
+            if (goalEnum == "Reducción de Peso / Pérdida de Grasa") {
+                if (tWeight >= currentWeight) {
+                    _uiMessage.value = "Para Reducción de Peso, el peso objetivo ($targetWeight $unitStr) debe ser menor al actual (${String.format("%.1f", currentWeight)} $unitStr)."
+                    return
+                }
+            } else if (goalEnum == "Aumento de Peso / Ganancia de Masa Muscular") {
+                if (tWeight <= currentWeight) {
+                    _uiMessage.value = "Para Aumento de Peso, el peso objetivo ($targetWeight $unitStr) debe ser mayor al actual (${String.format("%.1f", currentWeight)} $unitStr)."
+                    return
+                }
+            }
+        }
+
         sharedPrefs.edit().apply {
             putString("userGoalType", goalType)
             putString("userTargetWeight", targetWeight)
@@ -77,13 +106,10 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
         userActivityLevel.value = activityLevel
 
         viewModelScope.launch {
-            val latestMeas = measurements.value.firstOrNull()
-            
-            val tWeight = targetWeight.toDoubleOrNull()
+            val latestMeasInner = measurements.value.firstOrNull()
             if (tWeight != null && tWeight > 0.0) {
-                // Convert to kg for internal DB storage if unit is lbs
-                val weightInKg = if (useLb.value) tWeight / 2.20462 else tWeight
-                val startingWeight = latestMeas?.weight ?: weightInKg
+                val weightInKg = tWeight
+                val startingWeight = latestMeasInner?.weight ?: weightInKg
                 
                 val existingPesoGoals = goals.value.filter { it.type == "Peso (kg)" }
                 existingPesoGoals.forEach { repository.deleteGoal(it) }
@@ -98,7 +124,7 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
             
             val tFat = targetFat.toDoubleOrNull()
             if (tFat != null && tFat > 0.0) {
-                val startingFat = latestMeas?.fatPercentage ?: tFat
+                val startingFat = latestMeasInner?.fatPercentage ?: tFat
                 val existingFatGoals = goals.value.filter { it.type == "Grasa (%)" }
                 existingFatGoals.forEach { repository.deleteGoal(it) }
                 
@@ -153,9 +179,17 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
     // Current screen/tab selection: 0 = Historial, 1 = Registrar, 2 = Estadísticas, 3 = Guía/Ideal, 4 = Perfil
     private val _currentTab = MutableStateFlow(0)
     val currentTab: StateFlow<Int> = _currentTab.asStateFlow()
+    private var previousTab = 0
 
     fun selectTab(tab: Int) {
+        if (_currentTab.value != tab && _currentTab.value != 4) {
+            previousTab = _currentTab.value
+        }
         _currentTab.value = tab
+    }
+
+    fun goBackFromProfile() {
+        _currentTab.value = previousTab
     }
 
     // --- FORM FIELDS STATE ---
@@ -193,11 +227,14 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
         _uiMessage.value = null
     }
 
+    fun showUiMessage(message: String) {
+        _uiMessage.value = message
+    }
+
     // --- REALTIME DYNAMIC CALCULATIONS ---
     // Combined flow calculates BMI dynamically as user types weight/height
-    val calculatedBmi: StateFlow<Double> = combine(weightInput, heightInput, useLb) { weightStr, heightStr, isLb ->
-        val weightRaw = weightStr.toDoubleOrNull() ?: 0.0
-        val weight = if (isLb) weightRaw / 2.20462 else weightRaw
+    val calculatedBmi: StateFlow<Double> = combine(weightInput, heightInput, useLb) { weightStr, heightStr, _ ->
+        val weight = weightStr.toDoubleOrNull() ?: 0.0
         val height = heightStr.toDoubleOrNull() ?: 0.0
         BodyCalculator.calculateBMI(weight, height)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
@@ -272,7 +309,7 @@ class MeasurementViewModel(private val repository: MeasurementRepository, privat
                 return@launch
             }
 
-            val weight = if (useLb.value) weightRaw / 2.20462 else weightRaw
+            val weight = weightRaw
 
             // Determine target fat percentage
             val finalFat = if (isFatManual.value) {

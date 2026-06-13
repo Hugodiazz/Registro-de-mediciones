@@ -75,191 +75,264 @@ fun MainScreen(viewModel: MeasurementViewModel) {
     }
 
     val topBarTitle = when (currentTab) {
-        0 -> "Registro de Medidas"
-        1 -> "Nueva Medición"
-        2 -> "Estadísticas y Tendencias"
+        0 -> "Métrica"
+        1 -> "Métrica"
+        2 -> "Métrica"
         3 -> "Ayuda Médica y Guía"
-        4 -> "Perfil de Usuario"
-        else -> "Registro"
+        4 -> "Métrica"
+        else -> "Métrica"
     }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            val photoUri by viewModel.profilePhotoUri.collectAsState()
-            val isLite by viewModel.isLiteMode.collectAsState()
-            CenterAlignedTopAppBar(
-                navigationIcon = {
-                    Row(
-                        modifier = Modifier
-                            .padding(start = 12.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                            .padding(2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(if (!isLite) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                .clickable { viewModel.toggleLiteMode(false) }
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                                .testTag("toggle_pro_mode"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "PRO",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (!isLite) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(if (isLite) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                .clickable { viewModel.toggleLiteMode(true) }
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                                .testTag("toggle_lite_mode"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "LITE",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isLite) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
-                title = {
-                    Text(
-                        text = topBarTitle,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                },
-                actions = {
-                    // Botón redondo de Guía
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (currentTab == 3) MaterialTheme.colorScheme.primaryContainer 
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
-                            .border(
-                                width = 1.5.dp,
-                                color = if (currentTab == 3) MaterialTheme.colorScheme.primary 
-                                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                                shape = CircleShape
-                            )
-                            .clickable { viewModel.selectTab(3) }
-                            .testTag("nav_top_guia"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MenuBook,
-                            contentDescription = "Guía",
-                            tint = if (currentTab == 3) MaterialTheme.colorScheme.primary 
-                                   else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    // Botón redondo de Perfil con foto en círculo
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 12.dp)
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (currentTab == 4) MaterialTheme.colorScheme.primaryContainer 
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
-                            .border(
-                                width = 1.5.dp,
-                                color = if (currentTab == 4) MaterialTheme.colorScheme.primary 
-                                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                                shape = CircleShape
-                            )
-                            .clickable { viewModel.selectTab(4) }
-                            .testTag("nav_top_perfil"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (photoUri.isNotBlank()) {
-                            AsyncImage(
-                                model = photoUri,
-                                contentDescription = "Perfil",
-                                contentScale = ContentScale.Crop,
+            if (currentTab != 4) {
+                val photoUri by viewModel.profilePhotoUri.collectAsState()
+                val isLite by viewModel.isLiteMode.collectAsState()
+                CenterAlignedTopAppBar(
+                    navigationIcon = {
+                        if (currentTab != 0 && currentTab != 4) {
+                            Row(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Perfil",
-                                tint = if (currentTab == 4) MaterialTheme.colorScheme.primary 
-                                       else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(19.dp)
-                            )
+                                    .padding(start = 12.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .padding(2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(if (!isLite) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                        .clickable { viewModel.toggleLiteMode(false) }
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        .testTag("toggle_pro_mode"),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "PRO",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (!isLite) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(if (isLite) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                        .clickable { viewModel.toggleLiteMode(true) }
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        .testTag("toggle_lite_mode"),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "LITE",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isLite) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    },
+                    title = {
+                        Text(
+                            text = topBarTitle,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    },
+                    actions = {
+                        if (currentTab != 0 && currentTab != 4) {
+                            // Botón redondo de Guía
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (currentTab == 3) MaterialTheme.colorScheme.primaryContainer 
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    )
+                                    .border(
+                                        width = 1.5.dp,
+                                        color = if (currentTab == 3) MaterialTheme.colorScheme.primary 
+                                                else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                        shape = CircleShape
+                                    )
+                                    .clickable { viewModel.selectTab(3) }
+                                    .testTag("nav_top_guia"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MenuBook,
+                                    contentDescription = "Guía",
+                                    tint = if (currentTab == 3) MaterialTheme.colorScheme.primary 
+                                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            // Botón redondo de Perfil con foto en círculo
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 12.dp)
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (currentTab == 4) MaterialTheme.colorScheme.primaryContainer 
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    )
+                                    .border(
+                                        width = 1.5.dp,
+                                        color = if (currentTab == 4) MaterialTheme.colorScheme.primary 
+                                                else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                        shape = CircleShape
+                                    )
+                                    .clickable { viewModel.selectTab(4) }
+                                    .testTag("nav_top_perfil"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (photoUri.isNotBlank()) {
+                                    AsyncImage(
+                                        model = photoUri,
+                                        contentDescription = "Perfil",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = "Perfil",
+                                        tint = if (currentTab == 4) MaterialTheme.colorScheme.primary 
+                                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
                 )
-            )
+            }
         },
         bottomBar = {
-            // Persistent standard Material 3 Navigation Bar respect safe navigation bars window insets
-            NavigationBar(
-                modifier = Modifier
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .testTag("bottom_navigation_bar"),
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    selected = currentTab == 0,
-                    onClick = { viewModel.selectTab(0) },
-                    icon = { Icon(imageVector = Icons.Default.List, contentDescription = "Historial") },
-                    label = { Text("Historial", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                    modifier = Modifier.testTag("nav_tab_historial")
-                )
-                NavigationBarItem(
-                    selected = currentTab == 1,
-                    onClick = { viewModel.selectTab(1) },
-                    icon = { Icon(imageVector = Icons.Default.AddCircle, contentDescription = "Registrar") },
-                    label = { Text("Registrar", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                    modifier = Modifier.testTag("nav_tab_registrar")
-                )
-                NavigationBarItem(
-                    selected = currentTab == 2,
-                    onClick = { viewModel.selectTab(2) },
-                    icon = { Icon(imageVector = Icons.Default.ShowChart, contentDescription = "Estadísticas") },
-                    label = { Text("Gráficos", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                    modifier = Modifier.testTag("nav_tab_estadisticas")
-                )
+            if (currentTab != 4) {
+                // Sleek bottom navigation mimicking the HTML design
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .testTag("bottom_navigation_bar"),
+                    color = Color(0xFF1D2123), // bg-surface-container in HTML
+                    border = androidx.compose.foundation.BorderStroke(width = 0.5.dp, color = Color.White.copy(alpha = 0.05f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp, bottom = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Historial
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { viewModel.selectTab(0) }
+                                .testTag("nav_tab_historial"),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (currentTab == 0) Color.White.copy(alpha = 0.05f) else Color.Transparent)
+                                    .padding(horizontal = 22.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Assignment,
+                                    contentDescription = "Historial",
+                                    tint = if (currentTab == 0) Color(0xFF00F0FF) else Color(0xFF94A3B8),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "HISTORIAL",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (currentTab == 0) Color.White else Color(0xFF94A3B8).copy(alpha = 0.6f)
+                            )
+                        }
+
+                        // Registrar (Middle item ensuring we can still easily register new metrics)
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { viewModel.selectTab(1) }
+                                .testTag("nav_tab_registrar"),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (currentTab == 1) Color.White.copy(alpha = 0.05f) else Color.Transparent)
+                                    .padding(horizontal = 22.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AddBox,
+                                    contentDescription = "Registrar",
+                                    tint = if (currentTab == 1) Color(0xFF00F0FF) else Color(0xFF94A3B8),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "REGISTRAR",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (currentTab == 1) Color.White else Color(0xFF94A3B8).copy(alpha = 0.6f)
+                            )
+                        }
+
+                        // Estadísticas (formerly Análisis)
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { viewModel.selectTab(2) }
+                                .testTag("nav_tab_estadisticas"),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (currentTab == 2) Color.White.copy(alpha = 0.05f) else Color.Transparent)
+                                    .padding(horizontal = 22.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ShowChart,
+                                    contentDescription = "Estadísticas",
+                                    tint = if (currentTab == 2) Color(0xFF00F0FF) else Color(0xFF94A3B8),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "ESTADÍSTICAS",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (currentTab == 2) Color.White else Color(0xFF94A3B8).copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
             }
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        floatingActionButton = {
-            // Floating Action Button on the history screen to go write some metrics
-            if (currentTab == 0) {
-                FloatingActionButton(
-                    onClick = { viewModel.selectTab(1) },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.testTag("fab_add_measurement")
-                ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "Añadir Medidas")
-                }
-            }
-        }
+        floatingActionButton = {}
     ) { innerPadding ->
         Surface(
             modifier = Modifier

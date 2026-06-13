@@ -2,7 +2,9 @@ package com.example.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,61 +36,115 @@ fun HistorialTab(
     modifier: Modifier = Modifier
 ) {
     val measurements by viewModel.measurements.collectAsState()
+    val isLb by viewModel.useLb.collectAsState()
     val context = LocalContext.current
+
+    // Period filter state mimicking HTML selector
+    var selectedPeriod by remember { mutableStateOf("Todos") }
+    val filteredMeasurements = remember(measurements, selectedPeriod) {
+        val now = System.currentTimeMillis()
+        when (selectedPeriod) {
+            "Semana" -> measurements.filter { it.timestamp >= now - 7L * 24 * 3600 * 1000 }
+            "Mes" -> measurements.filter { it.timestamp >= now - 30L * 24 * 3600 * 1000 }
+            "3 Meses" -> measurements.filter { it.timestamp >= now - 90L * 24 * 3600 * 1000 }
+            "Año" -> measurements.filter { it.timestamp >= now - 365L * 24 * 3600 * 1000 }
+            else -> measurements
+        }
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
-        // Top overview summary with PDF export trigger
+        // Redesigned Top Header: Title & PDF Button side by side
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp),
+                .padding(vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Tus Registros",
+                    text = "Historial de Registros",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = Color.White
                 )
                 Text(
-                    text = "${measurements.size} mediciones registradas",
+                    text = "${filteredMeasurements.size} mediciones mostradas",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    color = Color(0xFF94A3B8)
                 )
             }
 
             if (measurements.isNotEmpty()) {
-                Button(
+                Surface(
                     onClick = {
                         PdfExporter.exportAndSharePdf(context, measurements)
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    color = Color(0xFF1D2123), // bg-surface-container in HTML
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
                     modifier = Modifier.testTag("export_pdf_button")
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PictureAsPdf,
-                        contentDescription = "PDF",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "PDF", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PictureAsPdf,
+                            contentDescription = "PDF",
+                            tint = Color(0xFF00F0FF), // clinical-cyan
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "PDF", 
+                            fontSize = 13.sp, 
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
 
-        if (measurements.isEmpty()) {
-            // Elegant Empty state illustration completely in Compose code
+        // Horizontal filter chips row mimicking the HTML
+        val periods = listOf("Todos", "Semana", "Mes", "3 Meses", "Año")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            periods.forEach { period ->
+                val isSelected = selectedPeriod == period
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (isSelected) Color(0xFF00F0FF) else Color(0xFF1D2123))
+                        .clickable { selectedPeriod = period }
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) Color.Transparent else Color.White.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = period,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSelected) Color.Black else Color(0xFF94A3B8)
+                    )
+                }
+            }
+        }
+
+        if (filteredMeasurements.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -101,9 +157,9 @@ fun HistorialTab(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(110.dp)
+                            .size(90.dp)
                             .background(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                color = Color(0xFF00F0FF).copy(alpha = 0.08f),
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center
@@ -111,38 +167,25 @@ fun HistorialTab(
                         Icon(
                             imageVector = Icons.Default.MonitorWeight,
                             contentDescription = "Sin registros",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(54.dp)
+                            tint = Color(0xFF00F0FF),
+                            modifier = Modifier.size(44.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                     Text(
-                        text = "Aún no tienes registros",
+                        text = "Analizando tendencias clínicas...",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = Color.White
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Comienza a monitorear tu peso y medidas corporales agregando tu primer registro.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                        text = "Ingresa tus medidas corporales en la pestaña de registro para visualizar tus registros históricos.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF94A3B8),
                         textAlign = TextAlign.Center,
-                        lineHeight = 20.sp
+                        lineHeight = 16.sp
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = { viewModel.selectTab(1) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.testTag("add_first_record_button")
-                    ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "Añadir")
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Nuevo Registro", fontWeight = FontWeight.Bold)
-                    }
                 }
             }
         } else {
@@ -150,15 +193,16 @@ fun HistorialTab(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = PaddingValues(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(
-                    items = measurements,
+                    items = filteredMeasurements,
                     key = { it.id }
                 ) { measurement ->
                     MeasurementItemCard(
                         item = measurement,
+                        isLb = isLb,
                         onDeleteClick = { viewModel.deleteMeasurement(measurement) }
                     )
                 }
@@ -170,9 +214,16 @@ fun HistorialTab(
 @Composable
 fun MeasurementItemCard(
     item: MeasurementEntity,
+    isLb: Boolean,
     onDeleteClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    
+    // Convert units dynamically
+    val weightMult = if (isLb) 2.20462 else 1.0
+    val weightUnit = if (isLb) "lbs" else "kg"
+    val displayWeight = item.weight * weightMult
+    
     val bmi = BodyCalculator.calculateBMI(item.weight, item.height)
     val bmiClass = BodyCalculator.getBMIClassification(bmi)
     val bmiColor = BodyCalculator.getBMIColor(bmi)
@@ -187,16 +238,13 @@ fun MeasurementItemCard(
         SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(item.timestamp))
     }
 
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("measurement_card_${item.id}"),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(16.dp)
+        color = Color(0xFF1D2123), // bg-surface-container in HTML (#1d2123)
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(
             modifier = Modifier
@@ -204,7 +252,7 @@ fun MeasurementItemCard(
                 .clickable { expanded = !expanded }
                 .padding(16.dp)
         ) {
-            // Header: Date & Collapse Arrow
+            // Header Row: Calendar Icon + Date + Collapse Arrow
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -214,167 +262,184 @@ fun MeasurementItemCard(
                     Icon(
                         imageVector = Icons.Default.CalendarToday,
                         contentDescription = "Fecha",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                        tint = Color(0xFF94A3B8),
+                        modifier = Modifier.size(14.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = dateStr,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFFCBD5E1)
                     )
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = if (expanded) "Colapsar" else "Expandir",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    tint = Color(0xFF94A3B8)
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Primary core details: Weight and Fat %
+            // The 3-Column horizontal grid layout from clinical HTML template
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Weight detail card segment
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
+                // Weight (Column 1)
+                Column(
+                    modifier = Modifier.weight(1.1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "PESO",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF64748B),
+                        letterSpacing = 1.sp
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.MonitorWeight,
-                            contentDescription = "Peso",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(Color.White.copy(alpha = 0.05f), shape = RoundedCornerShape(6.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MonitorWeight,
+                                contentDescription = "Peso",
+                                tint = Color(0xFF00F0FF), // clinical-cyan
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                         Text(
-                            text = "Peso",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                        Text(
-                            text = "${String.format("%.1f", item.weight)} kg",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = String.format(Locale.US, "%.1f %s", displayWeight, weightUnit),
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = Color.White
                         )
                     }
                 }
 
-                // Fat percentage details card segment
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .background(
-                                color = Color(fatColor).copy(alpha = 0.1f),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
+                // Body Fat (Column 2)
+                Column(
+                    modifier = Modifier.weight(1.1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "GRASA CORP.",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF64748B),
+                        letterSpacing = 1.sp
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Percent,
-                            contentDescription = "Grasa",
-                            tint = Color(fatColor),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(Color.White.copy(alpha = 0.05f), shape = RoundedCornerShape(6.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "%",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFF64748B)
+                            )
+                        }
                         Text(
-                            text = "Grasa Corporal",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                        Text(
-                            text = if (item.fatPercentage > 0.0) "${String.format("%.1f", item.fatPercentage)}%" else "N/A",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = if (item.fatPercentage > 0.0) String.format(Locale.US, "%.1f%%", item.fatPercentage) else "N/A",
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(fatColor)
+                            color = if (item.fatPercentage > 0.0) Color(fatColor) else Color(0xFF64748B)
                         )
                     }
                 }
 
-                // IMC / BMI details card segment
-                Column(horizontalAlignment = Alignment.End) {
+                // BMI (Column 3 - aligned right)
+                Column(
+                    modifier = Modifier.weight(0.8f),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     Text(
                         text = "IMC",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF64748B),
+                        letterSpacing = 1.sp
                     )
                     Text(
-                        text = String.format("%.1f", bmi),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
+                        text = String.format(Locale.US, "%.1f", bmi),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
                         color = Color(bmiColor)
                     )
                 }
             }
 
-            // Quick Badge tags shown for IMC status
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Clinical Badges matching the HTML design: colored background transparent, solid border
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // IMC status badge
-                Surface(
-                    color = Color(bmiColor).copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(8.dp)
+                // BMI Status Badge
+                Box(
+                    modifier = Modifier
+                        .background(Color(bmiColor).copy(alpha = 0.1f), shape = RoundedCornerShape(16.dp))
+                        .border(1.dp, Color(bmiColor).copy(alpha = 0.2f), shape = RoundedCornerShape(16.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = bmiClass,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(bmiColor),
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(bmiColor)
                     )
                 }
 
-                // Fat % status badge
+                // Fat % Status Badge (if recorded)
                 if (item.fatPercentage > 0.0) {
-                    Surface(
-                        color = Color(fatColor).copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(8.dp)
+                    Box(
+                        modifier = Modifier
+                            .background(Color(fatColor).copy(alpha = 0.1f), shape = RoundedCornerShape(16.dp))
+                            .border(1.dp, Color(fatColor).copy(alpha = 0.2f), shape = RoundedCornerShape(16.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = fatClass,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(fatColor),
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(fatColor)
                         )
                     }
                 }
             }
 
-            // Expanded tape tape metrics breakdown
+            // Expanded tape metrics breakdown
             AnimatedVisibility(
                 visible = expanded,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Divider(modifier = Modifier.padding(vertical = 14.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                    Divider(modifier = Modifier.padding(vertical = 14.dp), color = Color.White.copy(alpha = 0.08f))
 
                     Text(
                         text = "Medidas y Cintometría",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = Color(0xFF00F0FF) // clinical-cyan
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -405,13 +470,13 @@ fun MeasurementItemCard(
                         Text(
                             text = "Notas",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            color = Color(0xFF64748B)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = item.notes,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                            color = Color(0xFFCBD5E1),
                             lineHeight = 16.sp
                         )
                     }
@@ -454,13 +519,13 @@ fun TapeMeasurementLabel(
         Text(
             text = title,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+            color = Color(0xFF64748B)
         )
         Text(
             text = if (value > 0.0) "${value} cm" else "-",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = Color(0xFFCBD5E1)
         )
     }
 }

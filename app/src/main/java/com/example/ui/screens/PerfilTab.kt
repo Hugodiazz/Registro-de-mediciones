@@ -5,7 +5,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
+import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,11 +23,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -35,14 +37,14 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.ui.MeasurementViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PerfilTab(
     viewModel: MeasurementViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val scrollState = rememberScrollState()
+    var isEditing by remember { mutableStateOf(false) }
 
     // Observe saved profile state from SharedPreferences (via VM flows)
     val savedName by viewModel.profileName.collectAsState()
@@ -98,553 +100,977 @@ fun PerfilTab(
                 e.printStackTrace()
             }
             photoUriState = it.toString()
+            // Proactively save photo status
+            viewModel.saveProfile(nameInput, ageInput, genderInput, heightInput, it.toString())
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // --- PHOTO PORTRAIT SECTION ---
-        Box(
-            modifier = Modifier
-                .padding(top = 8.dp)
-                .size(130.dp),
-            contentAlignment = Alignment.BottomEnd
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                if (photoUriState.isNotBlank()) {
-                    AsyncImage(
-                        model = photoUriState,
-                        contentDescription = "Foto de perfil",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .testTag("profile_photo_display")
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Sin foto de perfil",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(75.dp)
-                    )
-                }
+    AnimatedContent(
+        targetState = isEditing,
+        transitionSpec = {
+            if (targetState) {
+                // Slide in from right, slide out to left
+                (slideInHorizontally { width -> width } + fadeIn()) with
+                        (slideOutHorizontally { width -> -width } + fadeOut())
+            } else {
+                // Slide in from left, slide out to right
+                (slideInHorizontally { width -> -width } + fadeIn()) with
+                        (slideOutHorizontally { width -> width } + fadeOut())
             }
-
-            // Edit Photo Trigger Button
-            IconButton(
-                onClick = {
-                    photoPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
-                    .testTag("profile_photo_picker")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = "Cambiar Foto",
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Basic Info Summary Badge
-        if (savedName.isNotBlank()) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = savedName,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "${if (savedAge.isNotBlank()) "$savedAge años • " else ""}$savedHeight cm • $savedGender",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-            }
-        } else {
-            Text(
-                text = "Completa tu perfil para personalizar la experiencia",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-        }
-
-        Divider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
-
-        // --- PROFILE EDIT FIELDS ---
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            shape = RoundedCornerShape(16.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-        ) {
+        },
+        label = "PerfilAnimation"
+    ) { editing ->
+        if (editing) {
+            // --- EDIT MODE: ACTUALIZAR DATOS ---
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF101415))
             ) {
-                Text(
-                    text = "Editar Datos Personales",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                // Header (Internal top navigation bar matching the HTML header for update page)
+                Surface(
+                    color = Color(0xFF191C1E),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .height(56.dp)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        IconButton(
+                            onClick = { isEditing = false },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Atrás",
+                                tint = Color.White
+                            )
+                        }
+                        Text(
+                            text = "Actualizar Datos",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF00F0FF) // clinical cyan text
+                        )
+                        Spacer(modifier = Modifier.size(40.dp)) // Spacer to keep title centered
+                    }
+                }
 
-                // Name complete field
-                OutlinedTextField(
-                    value = nameInput,
-                    onValueChange = { nameInput = it },
-                    label = { Text("Nombre Completo") },
-                    leadingIcon = { Icon(imageVector = Icons.Default.Badge, contentDescription = null) },
-                    placeholder = { Text("Ej. Juan Pérez") },
+                // Edit Form fields Scrollable content
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("profile_name_field"),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-
-                // Age and height row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    OutlinedTextField(
-                        value = ageInput,
-                        onValueChange = { ageInput = it },
-                        label = { Text("Edad") },
-                        leadingIcon = { Icon(imageVector = Icons.Default.CalendarToday, contentDescription = null) },
-                        placeholder = { Text("Ej. 25") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("profile_age_field"),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
+                    // Photo Portrait Section
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Box(
+                            modifier = Modifier.size(100.dp),
+                            contentAlignment = Alignment.BottomEnd
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF0b0f10))
+                                    .border(2.dp, Color(0xFF00F0FF), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (photoUriState.isNotBlank()) {
+                                    AsyncImage(
+                                        model = photoUriState,
+                                        contentDescription = "Avatar",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = "Avatar",
+                                        tint = Color(0xFFb9cacb),
+                                        modifier = Modifier.size(54.dp)
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF00F0FF))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PhotoCamera,
+                                    contentDescription = "Cambiar Foto",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "IDENTIDAD DE ATLETA",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFb9cacb),
+                            letterSpacing = 1.5.sp
+                        )
+                    }
 
-                    OutlinedTextField(
-                        value = heightInput,
-                        onValueChange = { heightInput = it },
-                        label = { Text("Estatura (cm)") },
-                        leadingIcon = { Icon(imageVector = Icons.Default.Height, contentDescription = null) },
-                        placeholder = { Text("Ej. 175") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("profile_height_field"),
+                    // Datos de Identidad Card
+                    Surface(
+                        color = Color(0xFF1D2022), // bento-card
                         shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
+                        border = BorderStroke(1.dp, Color(0xFF3B494B)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(
+                                text = "Datos de Identidad",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF00F0FF),
+                                letterSpacing = 1.sp
+                            )
+
+                            // Nombre Completo Field
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Nombre Completo",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFb9cacb)
+                                )
+                                OutlinedTextField(
+                                    value = nameInput,
+                                    onValueChange = { nameInput = it },
+                                    placeholder = { Text("Nombre completo", color = Color(0xFFb9cacb).copy(alpha = 0.4f)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Badge,
+                                            contentDescription = null,
+                                            tint = Color(0xFFb9cacb)
+                                        )
+                                    },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedBorderColor = Color(0xFF00F0FF),
+                                        unfocusedBorderColor = Color(0xFF3B494B),
+                                        focusedContainerColor = Color(0xFF323537).copy(alpha = 0.3f),
+                                        unfocusedContainerColor = Color(0xFF323537).copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("profile_name_field"),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                            }
+
+                            // Edad Field
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Edad",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFb9cacb)
+                                )
+                                OutlinedTextField(
+                                    value = ageInput,
+                                    onValueChange = { ageInput = it },
+                                    placeholder = { Text("Tu edad", color = Color(0xFFb9cacb).copy(alpha = 0.4f)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            tint = Color(0xFFb9cacb)
+                                        )
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedBorderColor = Color(0xFF00F0FF),
+                                        unfocusedBorderColor = Color(0xFF3B494B),
+                                        focusedContainerColor = Color(0xFF323537).copy(alpha = 0.3f),
+                                        unfocusedContainerColor = Color(0xFF323537).copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("profile_age_field"),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                            }
+
+                            // Género Choice Row
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "Sexo",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFb9cacb)
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            Color(0xFF323537).copy(alpha = 0.3f),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .border(1.dp, Color(0xFF3B494B), RoundedCornerShape(8.dp))
+                                        .padding(4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val isMale = genderInput == "Masculino"
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (isMale) Color(0xFF00F0FF) else Color.Transparent)
+                                            .clickable { genderInput = "Masculino" }
+                                            .padding(vertical = 10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "Masculino",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isMale) Color.Black else Color(0xFFb9cacb)
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (!isMale) Color(0xFF00F0FF) else Color.Transparent)
+                                            .clickable { genderInput = "Femenino" }
+                                            .padding(vertical = 10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "Femenino",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (!isMale) Color.Black else Color(0xFFb9cacb)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Altura Field
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Altura (cm)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFb9cacb)
+                                )
+                                OutlinedTextField(
+                                    value = heightInput,
+                                    onValueChange = { heightInput = it },
+                                    placeholder = { Text("175", color = Color(0xFFb9cacb).copy(alpha = 0.4f)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Straighten,
+                                            contentDescription = null,
+                                            tint = Color(0xFFb9cacb)
+                                        )
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedBorderColor = Color(0xFF00F0FF),
+                                        unfocusedBorderColor = Color(0xFF3B494B),
+                                        focusedContainerColor = Color(0xFF323537).copy(alpha = 0.3f),
+                                        unfocusedContainerColor = Color(0xFF323537).copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("profile_height_field"),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                            }
+                        }
+                    }
                 }
 
-                // Gender Selection Label
-                Column {
-                    Text(
-                        text = "Sexo / Género",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // Sticky Action Guardians Footer
+                Surface(
+                    color = Color(0xFF0b0f10),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        ProfileGenderChoice(
-                            text = "Masculino",
-                            icon = Icons.Default.Male,
-                            isSelected = genderInput == "Masculino",
-                            onClick = { genderInput = "Masculino" },
-                            modifier = Modifier.weight(1f)
-                        )
-                        ProfileGenderChoice(
-                            text = "Femenino",
-                            icon = Icons.Default.Female,
-                            isSelected = genderInput == "Femenino",
-                            onClick = { genderInput = "Femenino" },
-                            modifier = Modifier.weight(1f)
-                        )
+                        Button(
+                            onClick = {
+                                val heightDouble = heightInput.toDoubleOrNull()
+                                val ageInt = ageInput.toIntOrNull()
+
+                                val finalName = nameInput.trim().ifBlank { "Julian Alvarez" }
+                                val finalAge = if (ageInput.isNotBlank() && (ageInt == null || ageInt <= 0)) "24" else ageInput.trim()
+                                val finalHeight = if (heightInput.isNotBlank() && (heightDouble == null || heightDouble <= 0.0)) "170" else heightInput.trim()
+
+                                viewModel.saveProfile(
+                                    finalName,
+                                    finalAge,
+                                    genderInput,
+                                    finalHeight,
+                                    photoUriState
+                                )
+                                isEditing = false
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp)
+                                .testTag("profile_save_button"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF00F0FF) // neon cyan
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Save,
+                                    contentDescription = "Guardar",
+                                    tint = Color.Black
+                                )
+                                Text(
+                                    text = "Guardar Cambios",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
+                        }
                     }
                 }
             }
-        }
-
-        // --- ACTION SAVE BUTTON ---
-        Button(
-            onClick = {
-                val heightDouble = heightInput.toDoubleOrNull()
-                val ageInt = ageInput.toIntOrNull()
-
-                if (nameInput.isBlank()) {
-                    viewModel.saveProfile("", "", "", "", "")
-                    return@Button
-                }
-
-                if (ageInput.isNotBlank() && (ageInt == null || ageInt <= 0)) {
-                    // Friendly validation, not crash
-                    viewModel.saveProfile(nameInput, "", genderInput, heightInput, photoUriState)
-                } else if (heightInput.isNotBlank() && (heightDouble == null || heightDouble <= 0.0)) {
-                    viewModel.saveProfile(nameInput, ageInput, genderInput, "", photoUriState)
-                } else {
-                    viewModel.saveProfile(
-                        nameInput.trim(),
-                        ageInput.trim(),
-                        genderInput,
-                        heightInput.trim(),
-                        photoUriState
-                    )
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .testTag("profile_save_button"),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Icon(imageVector = Icons.Default.Save, contentDescription = "Guardar")
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Guardar Perfil",
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // --- HOJA DE RUTA / GOAL FORMULATION CARD ---
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            shape = RoundedCornerShape(16.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-        ) {
+        } else {
+            // --- VIEW MODE: MI PERFIL VIEW ---
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF101415))
             ) {
-                Text(
-                    text = "Definir Hoja de Ruta y Metas",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                // 1. Goal Type Toggle Row
-                Column {
-                    Text(
-                        text = "Tipo de Enfoque Principal (Meta)",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        GoalTypeOptionRow(
-                            text = "Reducción de Peso / Pérdida de Grasa",
-                            icon = Icons.Default.HealthAndSafety,
-                            description = "Enfoque en definición, salud metabólica y control de riesgos",
-                            isSelected = goalTypeInput == "Reducción de Peso / Pérdida de Grasa",
-                            onClick = { goalTypeInput = "Reducción de Peso / Pérdida de Grasa" }
+                // Return Arrow Top Bar
+                Surface(
+                    color = Color.Transparent,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .height(56.dp)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.goBackFromProfile() },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("profile_back_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Atrás",
+                                tint = Color.White
+                            )
+                        }
+                        Text(
+                            text = "Perfil",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF00F0FF) // clinical cyan text
                         )
-
-                        GoalTypeOptionRow(
-                            text = "Aumento de Peso / Ganancia de Masa Muscular",
-                            icon = Icons.Default.FitnessCenter,
-                            description = "Enfoque en hipertrofia y desarrollo estético",
-                            isSelected = goalTypeInput == "Aumento de Peso / Ganancia de Masa Muscular",
-                            onClick = { goalTypeInput = "Aumento de Peso / Ganancia de Masa Muscular" }
-                        )
+                        Spacer(modifier = Modifier.size(40.dp)) // Spacer to keep title centered
                     }
                 }
 
-                // 2. Weight and fat objective fields
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(11.dp)
+                // Profile Scrollable Body Layout
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    val weightSuffix = if (isLb) "lbs" else "kg"
-                    OutlinedTextField(
-                        value = targetWeightInput,
-                        onValueChange = { targetWeightInput = it },
-                        label = { Text("Peso Objetivo ($weightSuffix)") },
-                        leadingIcon = { Icon(imageVector = Icons.Default.TrendingDown, contentDescription = null) },
-                        placeholder = { Text("Ej. 70") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("goal_weight_input"),
+
+                    // Left Column style card: Avatar Container Section
+                    Surface(
+                        color = Color.Transparent, // card-surface
                         shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
+                        border = BorderStroke(0.dp, Color(0xFF323537)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            // Avatar section items vertical Column
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp, horizontal = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(160.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF0b0f10))
+                                        .border(0.dp, Color(0xFF323537), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (savedPhotoUri.isNotBlank()) {
+                                        AsyncImage(
+                                            model = savedPhotoUri,
+                                            contentDescription = "Avatar de Carlos",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(CircleShape)
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = "Avatar de Carlos",
+                                            tint = Color(0xFFb9cacb),
+                                            modifier = Modifier.size(90.dp)
+                                        )
+                                    }
+                                }
 
-                    OutlinedTextField(
-                        value = targetFatInput,
-                        onValueChange = { targetFatInput = it },
-                        label = { Text("% Grasa Obj.") },
-                        leadingIcon = { Icon(imageVector = Icons.Default.Percent, contentDescription = null) },
-                        placeholder = { Text("Ej. 12") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("goal_fat_input"),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-                }
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                // 3. Activity level chips Selector
-                Column {
-                    Text(
-                        text = "Nivel de Actividad Física (GETD)",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = savedName.ifBlank { "SIN NOMBRE" },
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
 
+                    // Right Column layout: Biometric Data KPIs Grid row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        val activityLevels = listOf("Sedentario", "Ligero", "Moderado", "Intenso")
-                        activityLevels.forEach { level ->
-                            ActivityLevelChip(
-                                text = level,
-                                isSelected = activityLevelInput == level,
-                                onClick = { activityLevelInput = level },
-                                modifier = Modifier.weight(1f)
+                        // Card: EDAD
+                        BiometricKpiCard(
+                            label = "EDAD",
+                            icon = Icons.Default.Cake,
+                            valueStr = savedAge.ifBlank { "24" },
+                            unitStr = "años",
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Card: GENERO
+                        BiometricKpiCard(
+                            label = "SEXO",
+                            icon = Icons.Default.Person,
+                            valueStr = savedGender.ifBlank { "Masculino" },
+                            unitStr = "",
+                            modifier = Modifier.weight(1.2f)
+                        )
+                    }
+
+                    // Card Height Row (Col-span 2 style)
+                    Surface(
+                        color = Color(0xFF191C1E),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFF323537)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .padding(16.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxHeight(),
+                                verticalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "ALTURA",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFb9cacb),
+                                        letterSpacing = 1.sp
+                                    )
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.Bottom,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                ) {
+                                    Text(
+                                        text = savedHeight.ifBlank { "160" },
+                                        fontSize = 36.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "cm",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFFb9cacb),
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Identity save link trigger card:
+                    Button(
+                        onClick = { isEditing = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("go_to_update_data_btn"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF00F0FF) // cyan neon container
+                        ),
+                        shape = RoundedCornerShape(28.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.EditNote,
+                                contentDescription = "Actualizar",
+                                tint = Color.Black,
+                                modifier = Modifier.size(24.dp)
                             )
+                            Text(
+                                text = "Actualizar Datos",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                        }
+                    }
+
+                    // --- HOJA DE RUTA Y METAS CARD ---
+                    Surface(
+                        color = Color(0xFF191C1E),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFF323537)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Map,
+                                    contentDescription = null,
+                                    tint = Color(0xFF00F0FF),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = "HOJA DE RUTA Y METAS",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFb9cacb),
+                                    letterSpacing = 1.sp
+                                )
+                            }
+
+                            // 1. Goal selection options
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(
+                                    text = "Tipo de Enfoque Principal (Meta)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFb9cacb)
+                                )
+
+                                val isGoalLose = goalTypeInput == "Reducción de Peso / Pérdida de Grasa" || goalTypeInput.isBlank()
+                                // Loss of Weight Choice Card
+                                Surface(
+                                    onClick = { goalTypeInput = "Reducción de Peso / Pérdida de Grasa" },
+                                    color = if (isGoalLose) Color(0xFF00F0FF).copy(alpha = 0.05f) else Color.Transparent,
+                                    border = BorderStroke(
+                                        width = if (isGoalLose) 2.dp else 1.dp,
+                                        color = if (isGoalLose) Color(0xFF00F0FF) else Color(0xFF323537)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(14.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    if (isGoalLose) Color(0xFF00F0FF).copy(alpha = 0.2f) else Color(0xFF272a2c),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                )
+                                                .padding(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.TrendingDown,
+                                                contentDescription = null,
+                                                tint = if (isGoalLose) Color(0xFF00F0FF) else Color(0xFFb9cacb),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Pérdida de Grasa",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = "Enfoque en definición, salud metabólica y control de riesgos",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFFb9cacb),
+                                                lineHeight = 15.sp,
+                                                modifier = Modifier.padding(top = 4.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Muscles gaining choice card
+                                Surface(
+                                    onClick = { goalTypeInput = "Ganancia de Masa Muscular" },
+                                    color = if (!isGoalLose) Color(0xFF00F0FF).copy(alpha = 0.05f) else Color.Transparent,
+                                    border = BorderStroke(
+                                        width = if (!isGoalLose) 2.dp else 1.dp,
+                                        color = if (!isGoalLose) Color(0xFF00F0FF) else Color(0xFF323537)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(14.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    if (!isGoalLose) Color(0xFF00F0FF).copy(alpha = 0.2f) else Color(0xFF272a2c),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                )
+                                                .padding(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.FitnessCenter,
+                                                contentDescription = null,
+                                                tint = if (!isGoalLose) Color(0xFF00F0FF) else Color(0xFFb9cacb),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Aumento de Peso / Ganancia de Masa Muscular",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = "Enfoque en hipertrofia y desarrollo estético",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFFb9cacb),
+                                                lineHeight = 15.sp,
+                                                modifier = Modifier.padding(top = 4.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 2. Weight and Fat objective numerical rows
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                // Column Weight Obj
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "Peso Objetivo (${if (isLb) "lbs" else "kg"})",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFb9cacb)
+                                    )
+                                    OutlinedTextField(
+                                        value = targetWeightInput,
+                                        onValueChange = { targetWeightInput = it },
+                                        placeholder = { Text("--", color = Color(0xFFb9cacb).copy(alpha = 0.4f)) },
+                                        trailingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.TrendingDown,
+                                                contentDescription = null,
+                                                tint = Color(0xFF00F0FF),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = Color.White,
+                                            unfocusedTextColor = Color.White,
+                                            focusedBorderColor = Color(0xFF00F0FF),
+                                            unfocusedBorderColor = Color(0xFF323537),
+                                            focusedContainerColor = Color(0xFF101415),
+                                            unfocusedContainerColor = Color(0xFF101415)
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("goal_weight_input"),
+                                        shape = RoundedCornerShape(8.dp),
+                                        singleLine = true
+                                    )
+                                }
+
+                                // Column Fat Obj
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "% Grasa Obj.",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFb9cacb)
+                                    )
+                                    OutlinedTextField(
+                                        value = targetFatInput,
+                                        onValueChange = { targetFatInput = it },
+                                        placeholder = { Text("--", color = Color(0xFFb9cacb).copy(alpha = 0.4f)) },
+                                        trailingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Percent,
+                                                contentDescription = null,
+                                                tint = Color(0xFF00F0FF),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = Color.White,
+                                            unfocusedTextColor = Color.White,
+                                            focusedBorderColor = Color(0xFF00F0FF),
+                                            unfocusedBorderColor = Color(0xFF323537),
+                                            focusedContainerColor = Color(0xFF101415),
+                                            unfocusedContainerColor = Color(0xFF101415)
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("goal_fat_input"),
+                                        shape = RoundedCornerShape(8.dp),
+                                        singleLine = true
+                                    )
+                                }
+                            }
+
+                            // 3. GETD Nivel de Actividad selector
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Nivel de Actividad Física (GETD)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFb9cacb)
+                                )
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFF101415), shape = RoundedCornerShape(24.dp))
+                                        .border(1.dp, Color(0xFF323537), RoundedCornerShape(24.dp))
+                                        .padding(4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    val levels = listOf("Sedentario", "Ligero", "Moderado", "Intenso")
+                                    levels.forEach { level ->
+                                        val isSelected = activityLevelInput == level
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .background(if (isSelected) Color(0xFF00F0FF) else Color.Transparent)
+                                                .clickable { activityLevelInput = level }
+                                                .padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = level,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) Color.Black else Color(0xFFb9cacb)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 4. Save Roadmap button
+                            Button(
+                                onClick = {
+                                    viewModel.saveGoalSettings(
+                                        goalTypeInput,
+                                        targetWeightInput.trim(),
+                                        targetFatInput.trim(),
+                                        activityLevelInput
+                                    )
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .testTag("goal_save_button"),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF00F0FF) // cyan neon container
+                                ),
+                                shape = RoundedCornerShape(24.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DirectionsRun,
+                                        contentDescription = null,
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "Guardar Objetivo",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-
-        // --- HOJA DE RUTA SAVE BUTTON ---
-        Button(
-            onClick = {
-                viewModel.saveGoalSettings(
-                    goalTypeInput,
-                    targetWeightInput.trim(),
-                    targetFatInput.trim(),
-                    activityLevelInput
-                )
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .testTag("goal_save_button"),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondary
-            )
-        ) {
-            Icon(imageVector = Icons.Default.DirectionsRun, contentDescription = "Guardar Goal")
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Guardar Hoja de Ruta",
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
-            )
-        }
     }
 }
 
 @Composable
-fun ProfileGenderChoice(
-    text: String,
+fun BiometricKpiCard(
+    label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit,
+    valueStr: String,
+    unitStr: String,
     modifier: Modifier = Modifier
 ) {
-    val containerColor = if (isSelected) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-    }
-
-    val contentColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    val strokeBorder = if (isSelected) {
-        androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-    } else {
-        androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-    }
-
     Surface(
-        onClick = onClick,
-        modifier = modifier
-            .height(46.dp)
-            .testTag("gender_choice_$text"),
-        shape = RoundedCornerShape(10.dp),
-        color = containerColor,
-        contentColor = contentColor,
-        border = strokeBorder
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text = text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        }
-    }
-}
-
-@Composable
-fun GoalTypeOptionRow(
-    text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    description: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val containerColor = if (isSelected) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-    }
-
-    val contentColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-
-    val borderStroke = if (isSelected) {
-        androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-    } else {
-        androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-    }
-
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("goal_type_option_$text"),
+        color = Color(0xFF191C1E), // card-surface
         shape = RoundedCornerShape(12.dp),
-        color = containerColor,
-        contentColor = contentColor,
-        border = borderStroke
+        border = BorderStroke(1.dp, Color(0xFF323537)),
+        modifier = modifier.height(110.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = text,
+                    text = label,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    color = Color(0xFFb9cacb),
+                    letterSpacing = 1.sp
                 )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    fontSize = 11.sp
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color(0xFF00F0FF),
+                    modifier = Modifier.size(16.dp)
                 )
             }
-        }
-    }
-}
 
-@Composable
-fun ActivityLevelChip(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val containerColor = if (isSelected) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-    }
-
-    val contentColor = if (isSelected) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    val strokeBorder = if (isSelected) {
-        androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-    } else {
-        androidx.compose.foundation.BorderStroke(1.dp, Color.Transparent)
-    }
-
-    Surface(
-        onClick = onClick,
-        modifier = modifier
-            .height(38.dp)
-            .testTag("activity_level_chip_$text"),
-        shape = RoundedCornerShape(10.dp),
-        color = containerColor,
-        contentColor = contentColor,
-        border = strokeBorder
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center
-            )
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                modifier = Modifier.padding(bottom = 2.dp)
+            ) {
+                Text(
+                    text = valueStr,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                if (unitStr.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = unitStr,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFFb9cacb),
+                        modifier = Modifier.padding(bottom = 3.dp)
+                    )
+                }
+            }
         }
     }
 }

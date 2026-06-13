@@ -21,11 +21,18 @@ val HighDensityOutline = Color(0xFFCAC4D0)
 val HighDensitySurfaceVariant = Color(0xFFF3EDF7)
 
 // Dark Theme fallback palette
-val DarkCharcoalBlack = Color(0xFF111827)
-val DarkSlateShadow = Color(0xFF1A1523)
-val DarkPurplePrimary = Color(0xFFD0BCFF)
-val DarkPurpleOnPrimary = Color(0xFF381E72)
-val DarkPurpleContainer = Color(0xFF4F378B)
-val DarkPurpleOnContainer = Color(0xFFEADDFF)
-val DarkSurface = Color(0xFF1D1B20)
-val DarkOnSurface = Color(0xFFE6E1E5)
+val DarkCharcoalBlack = Color(0xFF0B0F10) // Matches surface-container-lowest in HTML
+val DarkSlateShadow = Color(0xFF191C1E) // Matches surface-container-low in HTML
+val DarkPurplePrimary = Color(0xFF00F0FF) // Matches clinical-cyan in HTML
+val DarkPurpleOnPrimary = Color(0xFF000000)
+val DarkPurpleContainer = Color(0xFF1D2123) // Matches surface-container in HTML
+val DarkPurpleOnContainer = Color(0xFF00F0FF)
+val DarkSurface = Color(0xFF1D2123)
+val DarkOnSurface = Color(0xFFE2E8F0)
+
+// Clinical colors
+val ClinicalCyan = Color(0xFF00F0FF)
+val ClinicalGreen = Color(0xFF22C55E)
+val ClinicalOrange = Color(0xFFF97316)
+val ClinicalBg = Color(0xFF0B0F10)
+val ClinicalSurface = Color(0xFF1D2123)
